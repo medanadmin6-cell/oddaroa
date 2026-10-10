@@ -21,11 +21,11 @@ export interface GateSubject {
   payout_number?: string | null;
   payout_bank?: string | null;
   /**
-   * True when this account belongs to one of our own sub-admins.
+   * True when this account belongs to a sub-admin, or to the operator.
    *
-   * The deposit gate exists to qualify players. A partner is already known to
-   * us — we approved them — so asking them to buy their way past it is asking
-   * our own staff to pay to be trusted.
+   * Every sub-admin skips the deposit check, approved or not. Approval still
+   * decides commission, and it still decides whether the withdrawal itself
+   * waits for an operator. The deposit check is only there for ordinary players.
    */
   isPartner?: boolean;
 }

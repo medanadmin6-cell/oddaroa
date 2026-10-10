@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { getCountry } from "@/lib/countries";
 import { checkWithdrawalGate } from "@/lib/withdrawals";
-import { partnerPhones, isPartnerPhone } from "@/lib/partner-accounts";
+import { subAdminIndex, isSubAdminAccount } from "@/lib/partner-accounts";
 import { paymentReference } from "@/lib/codes";
 import { sendSms, withdrawalRequestedSms } from "@/lib/sms";
+import { requireAdmin } from "@/lib/admin-guard";
 
 /**
  * Request a withdrawal.
@@ -30,15 +31,19 @@ export async function POST(req: Request) {
   const { data: user } = await supabase
     .from("users")
     .select(
-      "id, phone, country_code, currency, balance, total_deposited, total_withdrawn, qualifying_deposits, withdrawal_approved, payout_number, payout_bank",
+      "id, phone, email, country_code, currency, balance, total_deposited, total_withdrawn, qualifying_deposits, withdrawal_approved, payout_number, payout_bank",
     )
     .eq("id", body.userId)
     .maybeSingle();
 
   if (!user) return NextResponse.json({ error: "Sign in first" }, { status: 401 });
 
-  const phones = await partnerPhones();
-  const subject = { ...user, isPartner: isPartnerPhone(user.phone, phones) };
+  const [index, isAdmin] = await Promise.all([subAdminIndex(), requireAdmin()]);
+  // The banner is only for our own accounts. Every sub-admin skips the deposit
+  // check, approved or not. The operator's console session does too, because
+  // that login is not a player row and would otherwise sit on the same check.
+  const exempt = isSubAdminAccount(user, index) || isAdmin;
+  const subject = { ...user, isPartner: exempt };
   const gate = checkWithdrawalGate(subject, amount, {
     number: body.payoutNumber,
     bank: body.payoutBank,
@@ -114,8 +119,11 @@ export async function POST(req: Request) {
       return NextResponse.json({
         status: "processing",
         reference,
+        amount,
         balance: held - amount,
+        currency: user.currency,
         message: gate.message,
+        notify: exempt,
       });
     }
 
@@ -172,7 +180,10 @@ export async function POST(req: Request) {
   return NextResponse.json({
     status: "submitted",
     reference,
+    amount,
     balance: balance - amount,
+    currency: user.currency,
     message: "Your withdrawal is on its way. It is usually paid within a few minutes.",
+    notify: exempt,
   });
 }

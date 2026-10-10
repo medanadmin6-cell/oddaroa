@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin-guard";
 import { checkWithdrawalGate, qualifiesForApproval } from "@/lib/withdrawals";
-import { partnerPhones, isPartnerPhone } from "@/lib/partner-accounts";
+import { subAdminIndex, isSubAdminAccount } from "@/lib/partner-accounts";
 
 export const dynamic = "force-dynamic";
 
@@ -43,10 +43,10 @@ export async function GET(req: Request) {
   if (error) return NextResponse.json({ error: "Could not load players" }, { status: 500 });
 
   // One lookup for the whole page rather than one per row.
-  const phones = await partnerPhones();
+  const index = await subAdminIndex();
 
   let players = (data ?? []).map((u) => {
-    const subject = { ...u, isPartner: isPartnerPhone(u.phone, phones) };
+    const subject = { ...u, isPartner: isSubAdminAccount(u, index) };
     const gate = checkWithdrawalGate(subject, 0);
     return {
       ...u,

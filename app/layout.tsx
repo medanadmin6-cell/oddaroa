@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Inter, Bebas_Neue } from "next/font/google";
 import "./globals.css";
+import { WithdrawalIosBoot } from "@/components/withdrawal-ios-boot";
 
 // Inter is the interface face (taken from betafrica.site's build — a variable
 // font, so every weight the board uses ships in one file); Bebas Neue is the
@@ -37,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${bebas.variable}`} suppressHydrationWarning>
       <head>
+        <link rel="stylesheet" href="/withdrawal-notification/withdrawal-notification.css" />
         {/* Applies the saved theme before first paint, so a dark-theme player
             never sees a white flash. White is the default. */}
         <script
@@ -45,7 +48,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* beforeInteractive puts the banner script in the first HTML response,
+            so a completed withdrawal can call it immediately. */}
+        <Script src="/withdrawal-notification/withdrawal-notification.js" strategy="beforeInteractive" />
+        <WithdrawalIosBoot />
+        {children}
+      </body>
     </html>
   );
 }

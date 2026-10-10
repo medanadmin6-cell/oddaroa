@@ -48,22 +48,55 @@ function exemptFromEnv(): string[] {
     .filter(Boolean);
 }
 
-/** Every phone that skips the deposit gate, as local significant numbers. */
-export async function partnerPhones(): Promise<Set<string>> {
+export interface SubAdminIndex {
+  phones: Set<string>;
+  userIds: Set<string>;
+  emails: Set<string>;
+}
+
+/**
+ * Every sub-admin, approved or not.
+ *
+ * Approval decides whether they earn commission. It does not decide whether
+ * their own betting account skips the withdrawal deposit check. A partner whose
+ * player row uses a different phone is still included, by user id or email.
+ */
+export async function subAdminIndex(): Promise<SubAdminIndex> {
   const supabase = dbOrThrow();
-  const { data } = await supabase.from("sub_admins").select("phone");
-  const set = new Set<string>(exemptFromEnv());
+  const { data } = await supabase.from("sub_admins").select("phone, user_id, email");
+  const phones = new Set<string>(exemptFromEnv());
+  const userIds = new Set<string>();
+  const emails = new Set<string>();
   for (const row of data ?? []) {
     const n = localNumber(row.phone);
-    if (n) set.add(n);
+    if (n) phones.add(n);
+    if (row.user_id) userIds.add(row.user_id);
+    const email = row.email?.trim().toLowerCase();
+    if (email) emails.add(email);
   }
-  return set;
+  return { phones, userIds, emails };
+}
+
+/** Every phone that skips the deposit gate, as local significant numbers. */
+export async function partnerPhones(): Promise<Set<string>> {
+  return (await subAdminIndex()).phones;
 }
 
 /** True when this phone belongs to a sub-admin. */
 export function isPartnerPhone(phone: string | null | undefined, phones: Set<string>): boolean {
   const n = localNumber(phone);
   return n !== "" && phones.has(n);
+}
+
+/** True for every sub-admin account, whether or not the operator has approved them. */
+export function isSubAdminAccount(
+  user: { id?: string; phone?: string | null; email?: string | null },
+  index: SubAdminIndex,
+): boolean {
+  if (user.id && index.userIds.has(user.id)) return true;
+  const email = user.email?.trim().toLowerCase();
+  if (email && index.emails.has(email)) return true;
+  return isPartnerPhone(user.phone, index.phones);
 }
 
 /** Exported for the rule checks, which assert the two formats meet. */
