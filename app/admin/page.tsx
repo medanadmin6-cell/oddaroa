@@ -7,6 +7,8 @@ import { useAdminData, Panel, CurrencyTotals } from "@/components/admin/ui";
 interface Overview {
   deposits: Record<string, number>;
   withdrawals: Record<string, number>;
+  depositsToday: Record<string, number>;
+  commissionToday: Record<string, number>;
   players: number;
   depositors: number;
   openTickets: number;
@@ -36,6 +38,17 @@ export default function OverviewPage() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Panel title="Deposits today">
+          <div className="p-4">
+            <CurrencyTotals totals={data.depositsToday} />
+          </div>
+        </Panel>
+        <Panel title="Commission today">
+          <div className="p-4">
+            <CurrencyTotals totals={data.commissionToday} />
+            <p className="mt-1 text-[11px] text-[var(--text-muted)]">Owed to sub-admins</p>
+          </div>
+        </Panel>
         <Panel title="Deposits">
           <div className="p-4">
             <CurrencyTotals totals={data.deposits} />

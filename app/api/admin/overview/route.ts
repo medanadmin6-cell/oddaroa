@@ -11,18 +11,40 @@ export async function GET() {
   const supabase = db();
   if (!supabase) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
 
-  const [{ data: payments }, { count: players }, { count: depositors }, { data: openBets }, { count: pendingDeposits }] =
-    await Promise.all([
-      supabase.from("payments").select("amount, currency, status, metadata").limit(5000),
-      supabase.from("users").select("id", { count: "exact", head: true }),
-      supabase.from("users").select("id", { count: "exact", head: true }).gt("total_deposited", 0),
-      supabase.from("bets").select("stake, potential_win, currency").eq("status", "pending").limit(2000),
-      supabase
-        .from("payments")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending")
-        .eq("provider", "manual"),
-    ]);
+  // Ghana runs on UTC, so midnight UTC is the start of the operator's day.
+  const dayStart = new Date();
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const dayStartIso = dayStart.toISOString();
+
+  const [
+    { data: payments },
+    { count: players },
+    { count: depositors },
+    { data: openBets },
+    { count: pendingDeposits },
+    { data: paymentsToday },
+    { data: commissionsToday },
+  ] = await Promise.all([
+    supabase.from("payments").select("amount, currency, status, metadata").limit(5000),
+    supabase.from("users").select("id", { count: "exact", head: true }),
+    supabase.from("users").select("id", { count: "exact", head: true }).gt("total_deposited", 0),
+    supabase.from("bets").select("stake, potential_win, currency").eq("status", "pending").limit(2000),
+    supabase
+      .from("payments")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .eq("provider", "manual"),
+    supabase
+      .from("payments")
+      .select("amount, currency, status, metadata")
+      .gte("created_at", dayStartIso)
+      .limit(5000),
+    supabase
+      .from("commissions")
+      .select("amount, currency")
+      .gte("created_at", dayStartIso)
+      .limit(5000),
+  ]);
 
   const deposits: Record<string, number> = {};
   const withdrawals: Record<string, number> = {};
@@ -35,6 +57,23 @@ export async function GET() {
     bucket[p.currency] = Math.round(((bucket[p.currency] ?? 0) + Number(p.amount)) * 100) / 100;
   }
 
+  // Today's credited deposits, same settled/withdrawal rules as the all-time total.
+  const depositsToday: Record<string, number> = {};
+  for (const p of paymentsToday ?? []) {
+    const meta = (p.metadata ?? {}) as { type?: string };
+    const settled = p.status === "confirmed" || p.status === "resolved";
+    if (!settled || meta.type === "withdrawal") continue;
+    depositsToday[p.currency] =
+      Math.round(((depositsToday[p.currency] ?? 0) + Number(p.amount)) * 100) / 100;
+  }
+
+  // Today's sub-admin commission earned, by currency.
+  const commissionToday: Record<string, number> = {};
+  for (const c of commissionsToday ?? []) {
+    commissionToday[c.currency] =
+      Math.round(((commissionToday[c.currency] ?? 0) + Number(c.amount)) * 100) / 100;
+  }
+
   const liability: Record<string, number> = {};
   let openStake = 0;
   for (const b of openBets ?? []) {
@@ -45,6 +84,8 @@ export async function GET() {
   return NextResponse.json({
     deposits,
     withdrawals,
+    depositsToday,
+    commissionToday,
     players: players ?? 0,
     depositors: depositors ?? 0,
     openTickets: openBets?.length ?? 0,
