@@ -9,6 +9,7 @@ interface Overview {
   withdrawals: Record<string, number>;
   depositsToday: Record<string, number>;
   commissionToday: Record<string, number>;
+  adminToday: Record<string, number>;
   players: number;
   depositors: number;
   openTickets: number;
@@ -47,6 +48,12 @@ export default function OverviewPage() {
           <div className="p-4">
             <CurrencyTotals totals={data.commissionToday} />
             <p className="mt-1 text-[11px] text-[var(--text-muted)]">Owed to sub-admins</p>
+          </div>
+        </Panel>
+        <Panel title="Admin today">
+          <div className="p-4">
+            <CurrencyTotals totals={data.adminToday} />
+            <p className="mt-1 text-[11px] text-[var(--text-muted)]">House 30% after commission</p>
           </div>
         </Panel>
         <Panel title="Deposits">

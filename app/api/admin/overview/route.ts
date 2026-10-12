@@ -74,6 +74,13 @@ export async function GET() {
       Math.round(((commissionToday[c.currency] ?? 0) + Number(c.amount)) * 100) / 100;
   }
 
+  // The house's share: today's deposits less the commission paid out on them.
+  const adminToday: Record<string, number> = {};
+  for (const currency of new Set([...Object.keys(depositsToday), ...Object.keys(commissionToday)])) {
+    adminToday[currency] =
+      Math.round(((depositsToday[currency] ?? 0) - (commissionToday[currency] ?? 0)) * 100) / 100;
+  }
+
   const liability: Record<string, number> = {};
   let openStake = 0;
   for (const b of openBets ?? []) {
@@ -86,6 +93,7 @@ export async function GET() {
     withdrawals,
     depositsToday,
     commissionToday,
+    adminToday,
     players: players ?? 0,
     depositors: depositors ?? 0,
     openTickets: openBets?.length ?? 0,
