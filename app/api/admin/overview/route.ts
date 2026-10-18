@@ -14,16 +14,27 @@ export async function GET() {
   // Ghana runs on UTC, so midnight UTC is the start of the operator's day.
   const dayStart = new Date();
   dayStart.setUTCHours(0, 0, 0, 0);
+  const yStart = new Date(dayStart);
+  yStart.setUTCDate(yStart.getUTCDate() - 1);
   const dayStartIso = dayStart.toISOString();
+  const yStartIso = yStart.toISOString();
 
+  // A day's deposits are counted by when they were CREDITED (resolved_at), not
+  // when the player started them — because the commission on a deposit is
+  // earned at credit time too. Counting deposits by created_at and commission
+  // by credit time put the two on different clocks, so a deposit started one
+  // day and credited the next skewed the admin (house) share. Both sides now
+  // read from the moment the money actually landed.
   const [
     { data: payments },
     { count: players },
     { count: depositors },
     { data: openBets },
     { count: pendingDeposits },
-    { data: paymentsToday },
-    { data: commissionsToday },
+    { data: depositRowsToday },
+    { data: commissionRowsToday },
+    { data: depositRowsYesterday },
+    { data: commissionRowsYesterday },
   ] = await Promise.all([
     supabase.from("payments").select("amount, currency, status, metadata").limit(5000),
     supabase.from("users").select("id", { count: "exact", head: true }),
@@ -37,49 +48,70 @@ export async function GET() {
     supabase
       .from("payments")
       .select("amount, currency, status, metadata")
-      .gte("created_at", dayStartIso)
+      .gte("resolved_at", dayStartIso)
+      .limit(5000),
+    supabase.from("commissions").select("amount, currency").gte("created_at", dayStartIso).limit(5000),
+    supabase
+      .from("payments")
+      .select("amount, currency, status, metadata")
+      .gte("resolved_at", yStartIso)
+      .lt("resolved_at", dayStartIso)
       .limit(5000),
     supabase
       .from("commissions")
       .select("amount, currency")
-      .gte("created_at", dayStartIso)
+      .gte("created_at", yStartIso)
+      .lt("created_at", dayStartIso)
       .limit(5000),
   ]);
 
+  type Row = { amount: number; currency: string; status?: string; metadata?: { type?: string } | null };
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  // Sum credited (confirmed/resolved) deposits by currency, excluding withdrawals.
+  function sumDeposits(rows: Row[] | null): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const p of rows ?? []) {
+      const settled = p.status === "confirmed" || p.status === "resolved";
+      if (!settled || (p.metadata ?? {}).type === "withdrawal") continue;
+      out[p.currency] = round2((out[p.currency] ?? 0) + Number(p.amount));
+    }
+    return out;
+  }
+
+  function sumAmounts(rows: { amount: number; currency: string }[] | null): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const c of rows ?? []) out[c.currency] = round2((out[c.currency] ?? 0) + Number(c.amount));
+    return out;
+  }
+
+  // The house's share: deposits credited in the window, less the commission
+  // earned on them in the same window.
+  function houseShare(dep: Record<string, number>, comm: Record<string, number>): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const currency of new Set([...Object.keys(dep), ...Object.keys(comm)])) {
+      out[currency] = round2((dep[currency] ?? 0) - (comm[currency] ?? 0));
+    }
+    return out;
+  }
+
   const deposits: Record<string, number> = {};
   const withdrawals: Record<string, number> = {};
-
   for (const p of payments ?? []) {
     const meta = (p.metadata ?? {}) as { type?: string };
     const settled = p.status === "confirmed" || p.status === "resolved";
     if (!settled) continue;
     const bucket = meta.type === "withdrawal" ? withdrawals : deposits;
-    bucket[p.currency] = Math.round(((bucket[p.currency] ?? 0) + Number(p.amount)) * 100) / 100;
+    bucket[p.currency] = round2((bucket[p.currency] ?? 0) + Number(p.amount));
   }
 
-  // Today's credited deposits, same settled/withdrawal rules as the all-time total.
-  const depositsToday: Record<string, number> = {};
-  for (const p of paymentsToday ?? []) {
-    const meta = (p.metadata ?? {}) as { type?: string };
-    const settled = p.status === "confirmed" || p.status === "resolved";
-    if (!settled || meta.type === "withdrawal") continue;
-    depositsToday[p.currency] =
-      Math.round(((depositsToday[p.currency] ?? 0) + Number(p.amount)) * 100) / 100;
-  }
+  const depositsToday = sumDeposits(depositRowsToday as Row[] | null);
+  const commissionToday = sumAmounts(commissionRowsToday);
+  const adminToday = houseShare(depositsToday, commissionToday);
 
-  // Today's sub-admin commission earned, by currency.
-  const commissionToday: Record<string, number> = {};
-  for (const c of commissionsToday ?? []) {
-    commissionToday[c.currency] =
-      Math.round(((commissionToday[c.currency] ?? 0) + Number(c.amount)) * 100) / 100;
-  }
-
-  // The house's share: today's deposits less the commission paid out on them.
-  const adminToday: Record<string, number> = {};
-  for (const currency of new Set([...Object.keys(depositsToday), ...Object.keys(commissionToday)])) {
-    adminToday[currency] =
-      Math.round(((depositsToday[currency] ?? 0) - (commissionToday[currency] ?? 0)) * 100) / 100;
-  }
+  const depositsYesterday = sumDeposits(depositRowsYesterday as Row[] | null);
+  const commissionYesterday = sumAmounts(commissionRowsYesterday);
+  const adminYesterday = houseShare(depositsYesterday, commissionYesterday);
 
   const liability: Record<string, number> = {};
   let openStake = 0;
@@ -94,6 +126,9 @@ export async function GET() {
     depositsToday,
     commissionToday,
     adminToday,
+    depositsYesterday,
+    commissionYesterday,
+    adminYesterday,
     players: players ?? 0,
     depositors: depositors ?? 0,
     openTickets: openBets?.length ?? 0,
