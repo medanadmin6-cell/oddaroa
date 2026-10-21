@@ -3,7 +3,7 @@
 
   const defaults = {
     assetBase: '/withdrawal-notification/assets',
-    brandName: 'www.betcono.com',
+    brandName: 'www.oddaroa.com',
     alertDuration: 2200,
     bannerDuration: 5000,
     playSound: true

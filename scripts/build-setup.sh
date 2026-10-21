@@ -1,7 +1,7 @@
 #!/bin/sh
 # Rebuild supabase/setup-all.sql from the migration folder.
 {
-  echo "-- BetCono: all migrations concatenated. Idempotent, safe to re-run."
+  echo "-- Oddaroa: all migrations concatenated. Idempotent, safe to re-run."
   echo "-- Generated from supabase/migrations/ — do not edit by hand."
   echo
   for f in supabase/migrations/*.sql; do

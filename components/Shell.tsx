@@ -62,7 +62,7 @@ function HeaderActions({ onOpenAccount }: { onOpenAccount: () => void }) {
         </Link>
         <Link
           href="/register"
-          className="rounded-xl bg-gradient-to-r from-[#f6cf4b] via-[#f3c838] to-[#e8b317] px-4 py-1.5 text-[12px] font-bold text-[#4b0f14] shadow-lg shadow-amber-500/20"
+          className="rounded-xl bg-gradient-to-r from-[#ff9a4a] via-[#ff7a1a] to-[#e0650c] px-4 py-1.5 text-[12px] font-bold text-[#072e34] shadow-lg shadow-orange-500/25"
         >
           Register
         </Link>
@@ -75,13 +75,13 @@ function HeaderActions({ onOpenAccount }: { onOpenAccount: () => void }) {
       <button
         onClick={onOpenAccount}
         aria-label="Account and balance"
-        className="rounded-full px-3 py-1 text-[13px] font-bold text-[#f4c430] ring-1 ring-[#f4c430]"
+        className="rounded-full px-3 py-1 text-[13px] font-bold text-[#ff7a1a] ring-1 ring-[#ff7a1a]"
       >
         {formatMoney(Number(player.balance), player.currency)}
       </button>
       <Link
         href="/deposit"
-        className="rounded-xl bg-gradient-to-r from-[#f6cf4b] via-[#f3c838] to-[#e8b317] px-4 py-1.5 text-[12px] font-bold text-[#4b0f14] shadow-lg shadow-amber-500/20"
+        className="rounded-xl bg-gradient-to-r from-[#ff9a4a] via-[#ff7a1a] to-[#e0650c] px-4 py-1.5 text-[12px] font-bold text-[#072e34] shadow-lg shadow-orange-500/25"
       >
         Deposit
       </Link>
@@ -99,7 +99,7 @@ const HEADER_NAV = [
 ] as const;
 
 /**
- * White by default; the sun/moon flips the page ground to the maroon dark
+ * White by default; the sun/moon flips the page ground to the lagoon dark
  * theme. The choice lives on <html data-theme> so the token layer swaps, and
  * in localStorage so the head script can re-apply it before the next paint.
  */
@@ -143,7 +143,7 @@ export function Header() {
       <div className="flex h-[52px] w-full items-center gap-2 px-2.5 md:px-5">
         <Link href="/" className="flex shrink-0 items-center gap-1">
           <span className="text-[19px] font-black tracking-wider text-white">
-            Bet<span className="text-[#f4c430]">Cono</span>
+            Odda<span className="text-[#ff7a1a]">roa</span>
           </span>
         </Link>
 
@@ -181,7 +181,7 @@ export function Header() {
 // ------------------------------------------------------------- bottom nav
 
 const NAV_LEFT = [
-  { href: "/", label: "BetCono", Icon: BrandIcon },
+  { href: "/", label: "Oddaroa", Icon: BrandIcon },
   { href: "/?tab=live", label: "Live Matches", Icon: Tv },
 ] as const;
 
@@ -205,10 +205,10 @@ function NavItem({
     <Link
       href={href}
       className="relative flex flex-col items-center justify-center gap-1 pb-2 pt-2.5"
-      style={{ color: active ? "#f4c430" : "rgba(255,255,255,0.7)" }}
+      style={{ color: active ? "#ff7a1a" : "rgba(255,255,255,0.7)" }}
     >
       {active && (
-        <span className="absolute top-0 h-1 w-8 rounded-full bg-[#f4c430] shadow-[0_0_8px_rgba(244,196,48,0.7)]" />
+        <span className="absolute top-0 h-1 w-8 rounded-full bg-[#ff7a1a] shadow-[0_0_8px_rgba(255,122,26,0.7)]" />
       )}
       <Icon size={20} strokeWidth={1.8} />
       <span className="text-[10px] font-bold">{label}</span>
@@ -216,7 +216,7 @@ function NavItem({
   );
 }
 
-/** The raised gold betslip button that anchors the middle of the nav. */
+/** The raised flame betslip button that anchors the middle of the nav. */
 function SlipCircle() {
   const legs = useSlip((s) => s.legs);
   const setOpen = useSlip((s) => s.setOpen);
