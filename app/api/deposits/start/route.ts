@@ -38,6 +38,13 @@ export async function POST(req: Request) {
 
   const country = getCountry(user.country_code);
 
+  if (amount < country.minDeposit) {
+    return NextResponse.json(
+      { error: `Minimum deposit is ${country.currencySymbol}${country.minDeposit}` },
+      { status: 400 },
+    );
+  }
+
   if (!user.first_deposit_at && amount < country.minFirstDeposit) {
     return NextResponse.json(
       { error: `Minimum first deposit is ${country.currencySymbol}${country.minFirstDeposit}` },

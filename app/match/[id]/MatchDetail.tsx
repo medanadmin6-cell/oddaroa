@@ -23,10 +23,9 @@ export function MatchDetail({ id }: { id: string }) {
   const [match, setMatch] = useState<FeedMatch | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<MarketGroup | "all">("all");
-  // Eighty markets cannot all be open at once. The first few are expanded and
-  // the rest start collapsed; an explicit toggle always wins over that default.
+  // Every market starts open, the same way the first three used to. A tap
+  // still collapses that one market.
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const OPEN_BY_DEFAULT = 3;
   const [starred, setStarred] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -163,15 +162,15 @@ export function MatchDetail({ id }: { id: string }) {
             </p>
 
             <div className="space-y-2 px-2.5 md:space-y-3 md:px-5">
-              {markets.map((m, i) => (
+              {markets.map((m) => (
                 <MarketCard
                   key={m.key}
                   match={match}
                   market={m}
-                  collapsed={collapsed[m.key] ?? i >= OPEN_BY_DEFAULT}
+                  collapsed={Boolean(collapsed[m.key])}
                   starred={Boolean(starred[m.key])}
                   onToggle={() =>
-                    setCollapsed((c) => ({ ...c, [m.key]: !(c[m.key] ?? i >= OPEN_BY_DEFAULT) }))
+                    setCollapsed((c) => ({ ...c, [m.key]: !c[m.key] }))
                   }
                   onStar={() => setStarred((s) => ({ ...s, [m.key]: !s[m.key] }))}
                 />

@@ -1,22 +1,12 @@
 # Promo artwork
 
-Photographs from [Pexels](https://www.pexels.com), used under the
-[Pexels licence](https://www.pexels.com/license/): free for commercial use,
-no attribution required, modification permitted.
+Original Oddaroa homepage art. Lagoon teal and flame orange, made for this
+site. No third-party photograph is used.
 
-| File | Pexels ID | Subject |
-| --- | --- | --- |
-| `welcome-bonus.jpg` | 1884574 | Supporters in the stands, match in play |
-| `best-odds.jpg` | 32110586 | Players celebrating a goal |
-| `top-matches.jpg` | 13069970 | Packed stadium crowd |
-| `live-now.jpg` | 9735384 | Football ground at night, aerial |
-| `booking-codes.jpg` | 16826134 | Ball on a floodlit pitch |
-
-Each is cropped to 344x352 — four times the 86x88 display size, so the cards
-stay sharp on a high-density phone screen.
-
-Replacing one is a straight file swap: keep the name, keep the aspect ratio.
-
-`messi.jpg` is not from Pexels: "Messi vs Nigeria 2018" by Кирилл Венедиктов
-(soccer.ru), via Wikimedia Commons, licensed CC BY-SA 3.0
-(https://commons.wikimedia.org/wiki/File:Messi_vs_Nigeria_2018.jpg).
+| File | Subject |
+| --- | --- |
+| `football.jpg` | Player in an orange kit striking the ball at night |
+| `welcome-bonus.jpg` | Supporters in the stands, teal and orange scarves |
+| `best-odds.jpg` | Players celebrating a goal |
+| `live-now.jpg` | Floodlit football ground at night, aerial |
+| `games.jpg` | Games tile, a die and a card |

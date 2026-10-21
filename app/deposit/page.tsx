@@ -11,20 +11,16 @@ import {
   ChevronRight,
   MapPin,
   Check,
-  Upload,
 } from "lucide-react";
 import { useSession } from "@/lib/store";
 import { getCountry, formatMoney, maskPhoneTail } from "@/lib/countries";
 
-type Rail = "momo" | "manual";
-
 /**
  * The deposit screen.
  *
- * Two rails behind two tabs: the country's instant gateway, and the manual
- * transfer that every market falls back to. The limits and fee notes at the
- * bottom are read from the same country configuration the endpoint enforces,
- * so what a player is told is what actually happens.
+ * Mobile money only. The limits and fee notes at the bottom are read from the
+ * same country configuration the endpoint enforces, so what a player is told
+ * is what actually happens.
  */
 export default function DepositPage() {
   const router = useRouter();
@@ -32,7 +28,6 @@ export default function DepositPage() {
   const hydrated = useSession((s) => s.hydrated);
   const setBalance = useSession((s) => s.setBalance);
 
-  const [rail, setRail] = useState<Rail>("momo");
   const [amount, setAmount] = useState("");
   const [phoneEdit, setPhoneEdit] = useState<string | null>(null);
   const [network, setNetwork] = useState<string | null>(null);
@@ -41,7 +36,6 @@ export default function DepositPage() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [done, setDone] = useState<{ balance?: number; bonus?: number } | null>(null);
-  const [settings, setSettings] = useState<Record<string, string>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const country = player ? getCountry(player.country_code) : getCountry("GH");
@@ -58,13 +52,6 @@ export default function DepositPage() {
     if (hydrated && !player) router.replace("/login");
   }, [hydrated, player, router]);
 
-  useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => j?.settings && setSettings(j.settings))
-      .catch(() => {});
-  }, []);
-
   useEffect(
     () => () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -73,8 +60,7 @@ export default function DepositPage() {
   );
 
   // A credited deposit shows its confirmation, then returns to the home page to
-  // bet. The manual rail never reaches `done` — it stays pending until the
-  // operator confirms it — so only an instant credit sends the player back.
+  // bet.
   useEffect(() => {
     if (!done) return;
     const t = setTimeout(() => router.push("/"), 2200);
@@ -135,29 +121,6 @@ export default function DepositPage() {
     }
   };
 
-  const submitManual = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const form = new FormData(e.currentTarget);
-      form.set("userId", player.id);
-      form.set("amount", String(value));
-
-      const res = await fetch("/api/deposits/manual", { method: "POST", body: form });
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error ?? "Could not record your deposit");
-        return;
-      }
-      setStatus(json.message);
-    } catch {
-      setError("Network problem. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   if (done) {
     return (
       <div className="min-h-screen bg-[var(--bg)]">
@@ -197,37 +160,6 @@ export default function DepositPage() {
       <DepositHeader onBack={() => router.back()} />
 
       <div className="mx-auto max-w-2xl">
-        {/* Rail tabs */}
-        <div className="grid grid-cols-2">
-          {(
-            [
-              { key: "momo", label: country.payoutRail === "bank" ? "Card / Bank" : "Mobile Money" },
-              { key: "manual", label: "Manual transfer" },
-            ] as const
-          ).map((t) => (
-            <button
-              key={t.key}
-              onClick={() => {
-                setRail(t.key);
-                setError(null);
-                setStatus(null);
-              }}
-              className="relative py-3.5 text-[15px]"
-              style={{
-                color: rail === t.key ? "var(--text-bright)" : "var(--text-muted)",
-                fontWeight: rail === t.key ? 700 : 400,
-              }}
-            >
-              {t.label}
-              {rail === t.key && (
-                <span className="absolute inset-x-6 bottom-0 h-[3px] rounded-full bg-[var(--accent)]" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {rail === "momo" ? (
-          <>
             {/* Account rows */}
             <SwitchRow
               icon={<Smartphone size={20} strokeWidth={1.7} className="text-[var(--text-muted)]" />}
@@ -313,61 +245,6 @@ export default function DepositPage() {
                 {busy ? "Starting…" : "Top Up Now"}
               </button>
             </div>
-          </>
-        ) : (
-          <form onSubmit={submitManual}>
-            <div className="mx-4 mt-4 rounded-lg bg-[var(--bg-elevated)] p-4">
-              <p className="text-[12px] text-[var(--text-muted)]">Send to</p>
-              <p className="mt-0.5 text-[20px] font-black tracking-wide text-[var(--accent)]">
-                {settings.deposit_account_number ?? "—"}
-              </p>
-              <p className="text-[12px] text-[var(--text-muted)]">
-                {settings.deposit_account_name ?? "Oddaroa"} ·{" "}
-                {settings.deposit_account_network ?? "Mobile Money"}
-              </p>
-            </div>
-
-            <AmountField
-              currency={player.currency}
-              value={amount}
-              onChange={setAmount}
-              hint={`min. ${min.toFixed(2)}`}
-            />
-
-            <div className="space-y-3 px-4 pt-3">
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-faint)]">
-                  Number you sent from
-                </span>
-                <input
-                  name="senderNumber"
-                  type="tel"
-                  defaultValue={player.phone}
-                  className="w-full rounded-lg bg-[var(--surface-2)] px-3 py-2.5 text-[14px] outline-none focus:ring-1 focus:ring-[var(--accent)]"
-                />
-              </label>
-
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-[var(--surface-2)] px-3 py-3 text-[13px] text-[var(--text-muted)]">
-                <Upload size={16} strokeWidth={1.9} />
-                Screenshot of the transfer
-                <input name="screenshot" type="file" accept="image/*" className="sr-only" />
-              </label>
-
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className="w-full rounded-lg py-3.5 text-[16px] font-bold"
-                style={
-                  canSubmit
-                    ? { background: "var(--accent)", color: "var(--accent-ink)" }
-                    : { background: "var(--surface)", color: "var(--text-muted)" }
-                }
-              >
-                {busy ? "Sending…" : "I have sent the money"}
-              </button>
-            </div>
-          </form>
-        )}
 
         {/* Feedback */}
         <div className="space-y-2 px-4 pt-3">

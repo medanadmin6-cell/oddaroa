@@ -20,8 +20,8 @@ import { BallIcon } from "@/components/icons";
  * banner carousel, the square sport tiles, the sport pills, and the search +
  * filter bar that drives the events board.
  *
- * Promo photography lives in public/promo under the Pexels licence — see the
- * CREDITS file there. Swapping one is a file replacement, not a code change.
+ * Promo photography lives in public/promo. Swapping one is a file
+ * replacement, not a code change.
  */
 
 // ------------------------------------------------------------- hero banner
@@ -35,7 +35,7 @@ interface Banner {
 
 const BANNERS: Banner[] = [
   {
-    art: "/promo/messi.jpg",
+    art: "/promo/football.jpg",
     kicker: "Football every day",
     title: "Back greatness — bet on the world's game",
     href: "/?tab=today",
@@ -125,7 +125,7 @@ const TILES: {
 }[] = [
   { label: "Soccer", href: "/", Icon: BallIcon, active: true },
   { label: "Today", href: "/?tab=today", Icon: Calendar },
-  { label: "Games", href: "/games", art: "/image.png", hot: true },
+  { label: "Games", href: "/games", art: "/promo/games.jpg", hot: true },
   { label: "Verify Bet", href: "/my-bets", Icon: ShieldCheck },
   { label: "Booking Codes", href: "/load-code", Icon: Ticket },
   { label: "All", href: "/az", Icon: Grid3x3 },
