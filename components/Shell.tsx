@@ -187,7 +187,7 @@ const NAV_LEFT = [
 
 const NAV_RIGHT = [
   { href: "/my-bets", label: "My Bets", Icon: ReceiptText },
-  { href: "/account", label: "Me Profile", Icon: User },
+  { href: "/account", label: "Me", Icon: User },
 ] as const;
 
 function NavItem({

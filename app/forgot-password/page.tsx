@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getCountry } from "@/lib/countries";
-import { CountryBar, PhoneField, PrimaryButton } from "@/components/AuthFields";
+import { AuthScreen, CountryBar, PhoneField, PrimaryButton } from "@/components/AuthFields";
 
 /**
  * Password reset. There is no reset rail in the platform yet — no email
@@ -12,7 +11,6 @@ import { CountryBar, PhoneField, PrimaryButton } from "@/components/AuthFields";
  * routes the player to support rather than pretending to send a code.
  */
 export default function ForgotPasswordPage() {
-  const router = useRouter();
   const [countryCode, setCountryCode] = useState("GH");
   const [phone, setPhone] = useState("");
   const [sent, setSent] = useState(false);
@@ -21,11 +19,8 @@ export default function ForgotPasswordPage() {
   const whatsapp = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP;
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
-      <div className="mx-auto w-full max-w-[455px] px-6 pb-16 pt-5">
-        <CountryBar country={country} onChange={setCountryCode} onClose={() => router.push("/login")} />
-
-        <h1 className="mt-8 text-[18px] font-medium">Reset your password</h1>
+    <AuthScreen title="Reset your password">
+        <CountryBar country={country} onChange={setCountryCode} />
 
         {sent ? (
           <div className="mt-6 space-y-4">
@@ -61,12 +56,11 @@ export default function ForgotPasswordPage() {
             <PrimaryButton type="submit">
               Continue
             </PrimaryButton>
-            <Link href="/login" className="block text-center text-[15px] font-medium text-[var(--accent)]">
+            <Link href="/login" className="block text-center text-[15px] font-medium text-[#ff4d4d]">
               Back to login
             </Link>
           </form>
         )}
-      </div>
-    </div>
+    </AuthScreen>
   );
 }

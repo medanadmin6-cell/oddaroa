@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "@/lib/store";
 import { getCountry, normalisePhone } from "@/lib/countries";
-import { CountryBar, PhoneField, PasswordField, PrimaryButton } from "@/components/AuthFields";
+import { AuthScreen, CountryBar, PhoneField, PasswordField, PrimaryButton } from "@/components/AuthFields";
 
 function LoginForm() {
   const router = useRouter();
@@ -53,51 +53,30 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
-      <div className="mx-auto w-full max-w-[455px] px-6 pb-16 pt-5">
-        <CountryBar
-          country={country}
-          onChange={setCountryCode}
-          onClose={() => router.push("/")}
-        />
+    <AuthScreen title="Login">
+      <form onSubmit={submit} className="space-y-5">
+        <CountryBar country={country} onChange={setCountryCode} />
+        <PhoneField country={country} value={phone} onChange={setPhone} autoFocus />
+        <PasswordField value={password} onChange={setPassword} />
 
-        <form onSubmit={submit} className="mt-8 space-y-4">
-          <PhoneField country={country} value={phone} onChange={setPhone} autoFocus />
-          <PasswordField value={password} onChange={setPassword} />
+        {error && (
+          <p className="rounded-xl bg-red-950/60 px-3 py-2.5 text-[13px] text-red-300">{error}</p>
+        )}
 
-          {error && (
-            <p className="rounded-lg bg-[var(--lose-bg)] px-3 py-2.5 text-[13px] text-[var(--lose)]">
-              {error}
-            </p>
-          )}
+        <PrimaryButton type="submit" disabled={busy}>
+          {busy ? "Signing in…" : "Login"}
+        </PrimaryButton>
+      </form>
 
-          <div className="pt-2">
-            <PrimaryButton type="submit" disabled={busy}>
-              {busy ? "Signing in…" : "Login"}
-            </PrimaryButton>
-          </div>
-        </form>
-
-        <div className="mt-5 flex items-center justify-between">
-          <Link href="/forgot-password" className="text-[15px] font-medium text-[var(--accent)]">
-            Forgot Password ?
-          </Link>
-          <Link href="/register" className="text-[15px] font-medium text-[var(--accent)]">
-            Create New Account
-          </Link>
-        </div>
-
-        <p className="mt-10 text-center text-[15px] text-[var(--text-muted)]">Or</p>
-
-        <p className="mt-8 text-[15px] leading-relaxed text-[var(--text-muted)]">
-          To deactivate or reactivate your account{" "}
-          <Link href="/account-status" className="font-medium text-[var(--accent)]">
-            click here
-          </Link>{" "}
-          .
-        </p>
+      <div className="mt-5 flex items-center justify-between text-[14px]">
+        <Link href="/forgot-password" className="text-zinc-400">
+          Forgot Password?
+        </Link>
+        <Link href="/register" className="font-semibold text-[#ff4d4d]">
+          Create an Account
+        </Link>
       </div>
-    </div>
+    </AuthScreen>
   );
 }
 

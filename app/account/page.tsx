@@ -19,6 +19,7 @@ import {
   UserRound,
   Handshake,
   LogOut,
+  Trash2,
 } from "lucide-react";
 import { Page } from "@/components/Shell";
 import { SupportChat } from "@/components/SupportChat";
@@ -258,6 +259,7 @@ function AccountView() {
             label="24/7 Customer Service"
             dot
           />
+          <DeleteProfile />
         </nav>
 
         <button
@@ -311,6 +313,80 @@ function Tile({ href, icon, label }: { href: string; icon: React.ReactNode; labe
       {icon}
       <span className="text-[12px] font-medium">{label}</span>
     </Link>
+  );
+}
+
+function DeleteProfile() {
+  const router = useRouter();
+  const player = useSession((s) => s.player);
+  const signOut = useSession((s) => s.signOut);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const remove = async () => {
+    if (!player) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: player.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "Could not delete your profile");
+        return;
+      }
+      signOut();
+      router.push("/");
+    } catch {
+      setError("Network problem. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="flex w-full items-center gap-3 border-b border-[var(--line)] px-4 py-3.5 text-left"
+      >
+        <Trash2 size={19} strokeWidth={1.8} className="text-[var(--lose)]" />
+        <span className="flex-1 text-[14px] text-[var(--lose)]">Delete profile</span>
+        <ChevronRight size={17} strokeWidth={2} className="text-[var(--text-faint)]" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="border-b border-[var(--line)] px-4 py-3.5">
+      <p className="text-[13px] leading-relaxed text-[var(--text)]">
+        Delete this profile? The account, bets and balance are removed and cannot be restored.
+      </p>
+      {error && <p className="mt-2 text-[12px] text-[var(--lose)]">{error}</p>}
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          disabled={busy}
+          className="flex-1 rounded-lg py-2 text-[13px] font-bold ring-1 ring-[var(--line)]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={remove}
+          disabled={busy}
+          className="flex-1 rounded-lg bg-[var(--lose)] py-2 text-[13px] font-bold text-white disabled:opacity-50"
+        >
+          {busy ? "Deleting…" : "Delete profile"}
+        </button>
+      </div>
+    </div>
   );
 }
 

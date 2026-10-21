@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Inter, Bebas_Neue } from "next/font/google";
 import "./globals.css";
 import { WithdrawalIosBoot } from "@/components/withdrawal-ios-boot";
+import { RememberReferral } from "@/components/RememberReferral";
 
 // Inter is the interface face (taken from betafrica.site's build — a variable
 // font, so every weight the board uses ships in one file); Bebas Neue is the
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             so a completed withdrawal can call it immediately. */}
         <Script src="/withdrawal-notification/withdrawal-notification.js" strategy="beforeInteractive" />
         <WithdrawalIosBoot />
+        <RememberReferral />
         {children}
       </body>
     </html>
