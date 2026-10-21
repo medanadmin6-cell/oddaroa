@@ -8,8 +8,8 @@ import { formatMoney } from "@/lib/countries";
 const ORDINALS = ["First", "Second", "Third", "Fourth", "Fifth"];
 
 /**
- * The verification prompt a player meets when they try to withdraw before the
- * deposit gate is met.
+ * The verification prompt a player meets when they try to withdraw after a
+ * first deposit and a win, before the deposit gate is met.
  *
  * It states the rule the endpoint actually enforces — `checkWithdrawalGate` is
  * the single source of it — and shows real progress against it. The line about

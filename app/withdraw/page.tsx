@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Page } from "@/components/Shell";
 import { useSession } from "@/lib/store";
 import { getCountry, formatMoney } from "@/lib/countries";
-import { VerifyGate } from "@/components/VerifyGate";
 import { RequestSubmitted } from "@/components/RequestSubmitted";
 import { showWithdrawalIos } from "@/lib/withdrawal-ios";
 
@@ -23,8 +22,6 @@ export default function WithdrawPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<{ title: string; message: string } | null>(null);
   const [progress, setProgress] = useState<{ label: string; have: number; need: number } | null>(null);
-  const [gateFailed, setGateFailed] = useState<string | null>(null);
-  const [checking, setChecking] = useState(false);
 
   const country = player ? getCountry(player.country_code) : getCountry("GH");
 
@@ -44,11 +41,14 @@ export default function WithdrawPage() {
 
   const apply = useCallback(
     (j: {
-      withdrawal: { unlocked: boolean; failed?: string; progress: { label: string; have: number; need: number } };
+      withdrawal: {
+        unlocked: boolean;
+        failed?: string;
+        progress: { label: string; have: number; need: number };
+      };
       user: { payout_number?: string | null; payout_bank?: string | null; balance?: number };
     }) => {
       setProgress(j.withdrawal.progress);
-      setGateFailed(j.withdrawal.unlocked ? null : (j.withdrawal.failed ?? null));
       setPayoutNumber((n) => n || j.user.payout_number || player?.phone || "");
       setPayoutBank((b) => b || j.user.payout_bank || "");
       if (typeof j.user.balance === "number") setBalance(Number(j.user.balance));
@@ -65,15 +65,6 @@ export default function WithdrawPage() {
       alive = false;
     };
   }, [fetchMe, apply]);
-
-  /** The player says they have deposited: ask the server rather than assume. */
-  const recheck = () => {
-    setChecking(true);
-    void fetchMe().then((j) => {
-      if (j) apply(j);
-      setChecking(false);
-    });
-  };
 
   if (!player) return null;
 
@@ -127,21 +118,7 @@ export default function WithdrawPage() {
 
   return (
     <Page>
-      {/* The deposit gate is the one worth interrupting for: the others are
-          fixed on this page, this one is not. */}
       {submitted && <RequestSubmitted title={submitted.title} message={submitted.message} />}
-
-      {gateFailed === "deposits" && progress && (
-        <VerifyGate
-          amount={country.withdrawQualifyAmount}
-          currency={player.currency}
-          have={progress.have}
-          need={progress.need}
-          onBack={() => router.back()}
-          onRecheck={recheck}
-          checking={checking}
-        />
-      )}
 
       <div className="mx-auto max-w-md space-y-3">
         <h1 className="text-[18px] font-black">Withdraw</h1>
