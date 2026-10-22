@@ -82,22 +82,6 @@ export default function ProfilePage() {
               <p className="text-[13px] font-semibold">
                 Withdrawals {unlocked ? "unlocked" : "locked"}
               </p>
-              <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
-                {data?.withdrawal.progress.label ?? "—"}
-              </p>
-              {data && (
-                <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                  <div
-                    className="h-full rounded-full bg-[var(--accent)]"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        (data.withdrawal.progress.have / Math.max(1, data.withdrawal.progress.need)) * 100,
-                      )}%`,
-                    }}
-                  />
-                </div>
-              )}
             </div>
           </div>
 

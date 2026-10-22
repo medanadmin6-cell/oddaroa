@@ -31,7 +31,6 @@ interface Summary {
   withdrawable: number;
   openBets: number;
   tierPoints: number;
-  gateLabel: string;
   unlocked: boolean;
 }
 
@@ -73,7 +72,6 @@ export function AccountDrawer({ open, onClose }: { open: boolean; onClose: () =>
           withdrawable: me.withdrawal.unlocked ? balance : 0,
           openBets: (bets.bets ?? []).filter((b: { status: string }) => b.status === "pending").length,
           tierPoints: me.tierPoints ?? 0,
-          gateLabel: me.withdrawal.progress.label,
           unlocked: me.withdrawal.unlocked,
         });
       } catch {
@@ -148,9 +146,6 @@ export function AccountDrawer({ open, onClose }: { open: boolean; onClose: () =>
               <p className="mt-0.5 text-[20px] font-black leading-none text-[var(--text-bright)]">
                 {hidden ? "••••" : formatMoney(withdrawable, player.currency)}
               </p>
-              {summary && !summary.unlocked && (
-                <p className="mt-1 text-[11px] text-[var(--pending)]">{summary.gateLabel}</p>
-              )}
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
