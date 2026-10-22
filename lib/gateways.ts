@@ -58,6 +58,8 @@ export interface StartOpts {
   email: string;
   name: string;
   redirectUrl: string;
+  /** Network label from the deposit screen, such as "MTN Mobile Money". */
+  network?: string;
 }
 
 function env(name: string): string | null {
@@ -337,11 +339,97 @@ const manual: GatewayAdapter = {
   },
 };
 
+// ---------------------------------------------------------------- AkwaPay
+
+/** AkwaPay takes the minor unit: GH₵ 250.00 is 25000 pesewas. */
+const AKWAPAY_BASE = "https://akwapayapi.onrender.com/v1";
+
+function akwaNetwork(label: string | undefined): "MTN" | "TELECEL" | "AIRTELTIGO" {
+  const n = (label ?? "").toUpperCase();
+  if (n.includes("TELECEL") || n.includes("VODAFONE")) return "TELECEL";
+  if (n.includes("AIRTEL") || n.includes("TIGO")) return "AIRTELTIGO";
+  return "MTN";
+}
+
+/** AkwaPay wants a local handset number, 024…, not the international form. */
+function akwaPhone(phone: string): string {
+  let d = phone.replace(/\D/g, "");
+  if (d.startsWith("233") && d.length >= 12) d = d.slice(3);
+  d = d.replace(/^0+/, "");
+  return d ? `0${d}` : phone;
+}
+
+const akwapay: GatewayAdapter = {
+  id: "akwapay",
+  label: "AkwaPay",
+  async start({ reference, amount, currency, phone, network }) {
+    const key = env("AKWAPAY_SECRET_KEY");
+    if (!key) return { ok: false, error: "Mobile money is not available right now" };
+    try {
+      const res = await fetch(`${AKWAPAY_BASE}/payment_intents`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": reference,
+        },
+        body: JSON.stringify({
+          amount: Math.round(amount * 100),
+          currency,
+          method: "mobile_money",
+          network: akwaNetwork(network),
+          customer: { phone: akwaPhone(phone) },
+          reference,
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.error) {
+        const message = json?.error?.message;
+        console.error("[akwapay] start", res.status, json?.error?.code);
+        return { ok: false, error: typeof message === "string" ? message : "Could not start the charge" };
+      }
+      return {
+        ok: true,
+        awaitingPrompt: true,
+        metadata: { akwapay_id: json?.id ?? null, network: akwaNetwork(network) },
+      };
+    } catch (err) {
+      console.error("[akwapay] start", err);
+      return { ok: false, error: "Could not start the charge" };
+    }
+  },
+  async status(_reference, meta) {
+    const key = env("AKWAPAY_SECRET_KEY");
+    const id = typeof meta?.akwapay_id === "string" ? meta.akwapay_id : "";
+    if (!key || !id) return { status: "pending" };
+    try {
+      const res = await fetch(`${AKWAPAY_BASE}/payment_intents/${encodeURIComponent(id)}`, {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.error) return { status: "pending" };
+      const row = (json?.data ?? json) as Record<string, unknown>;
+      const s = String(row.status ?? "").toLowerCase();
+      const status: ChargeStatus = ["succeeded", "paid", "successful", "completed", "success"].includes(s)
+        ? "confirmed"
+        : ["failed", "canceled", "cancelled", "expired"].includes(s)
+          ? "failed"
+          : "pending";
+      // Leave the settled figure unset. AkwaPay reports pesewas, and crediting
+      // that integer raw would multiply the deposit by a hundred.
+      return { status, paidCurrency: typeof row.currency === "string" ? row.currency : undefined };
+    } catch {
+      return { status: "pending" };
+    }
+  },
+};
+
 const ADAPTERS: Record<Gateway, GatewayAdapter> = {
   korapay,
   moolre,
   paystack,
   alphapay,
+  akwapay,
   manual,
 };
 

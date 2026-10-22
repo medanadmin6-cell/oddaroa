@@ -5,9 +5,9 @@
  */
 
 export type PayoutRail = "mobile" | "bank";
-export type Gateway = "korapay" | "moolre" | "paystack" | "alphapay" | "manual";
+export type Gateway = "korapay" | "moolre" | "paystack" | "alphapay" | "akwapay" | "manual";
 
-const GATEWAYS: Gateway[] = ["korapay", "moolre", "paystack", "alphapay", "manual"];
+const GATEWAYS: Gateway[] = ["korapay", "moolre", "paystack", "alphapay", "akwapay", "manual"];
 
 export type KycKind = "bvn" | "nin" | "national_id";
 
@@ -42,7 +42,7 @@ const BASE: Record<string, CountryConfig> = {
     currencySymbol: "GH₵",
     dialCode: "233",
     phoneDigits: 9,
-    gateway: "alphapay",
+    gateway: "akwapay",
     payoutRail: "mobile",
     // Ghana collects no KYC value at sign-up; identity is carried by the
     // mobile-money number, which is already name-verified by the network.

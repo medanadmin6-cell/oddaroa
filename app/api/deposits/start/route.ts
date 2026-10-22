@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const supabase = db();
   if (!supabase) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
 
-  let body: { userId?: string; amount?: number; phone?: string };
+  let body: { userId?: string; amount?: number; phone?: string; network?: string };
   try {
     body = await req.json();
   } catch {
@@ -76,6 +76,7 @@ export async function POST(req: Request) {
     amount,
     currency: user.currency,
     phone: body.phone?.replace(/\D/g, "") || user.phone,
+    network: body.network,
     email: user.email ?? "",
     name: user.name,
     redirectUrl: `${origin}/account?ref=${reference}`,
