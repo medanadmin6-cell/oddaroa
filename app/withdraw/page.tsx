@@ -21,7 +21,6 @@ export default function WithdrawPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<{ title: string; message: string } | null>(null);
-  const [progress, setProgress] = useState<{ label: string; have: number; need: number } | null>(null);
 
   const country = player ? getCountry(player.country_code) : getCountry("GH");
 
@@ -41,14 +40,8 @@ export default function WithdrawPage() {
 
   const apply = useCallback(
     (j: {
-      withdrawal: {
-        unlocked: boolean;
-        failed?: string;
-        progress: { label: string; have: number; need: number };
-      };
       user: { payout_number?: string | null; payout_bank?: string | null; balance?: number };
     }) => {
-      setProgress(j.withdrawal.progress);
       setPayoutNumber((n) => n || j.user.payout_number || player?.phone || "");
       setPayoutBank((b) => b || j.user.payout_bank || "");
       if (typeof j.user.balance === "number") setBalance(Number(j.user.balance));
@@ -82,8 +75,11 @@ export default function WithdrawPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        setError(json.error ?? "Could not submit your withdrawal");
-        if (json.progress) setProgress(json.progress);
+        // The deposit rule still blocks the request. The player is not told
+        // how many deposits are left.
+        if (json.gate !== "deposits") {
+          setError(json.error ?? "Could not submit your withdrawal");
+        }
         return;
       }
 
@@ -128,7 +124,6 @@ export default function WithdrawPage() {
           <p className="text-[26px] font-black text-[var(--accent)]">
             {formatMoney(Number(player.balance), player.currency)}
           </p>
-          {progress && <p className="mt-1 text-[11px] text-[var(--text-muted)]">{progress.label}</p>}
         </div>
 
         <form onSubmit={submit} className="space-y-3 rounded-lg bg-[var(--bg-elevated)] p-4">
