@@ -2,8 +2,15 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useAdminData, adminAction, Panel, Button, money } from "@/components/admin/ui";
+import { useAdminData, adminAction, Panel, Table, Badge, Button, money } from "@/components/admin/ui";
 import { useDialog } from "@/components/admin/Dialog";
+
+interface Player {
+  id: string;
+  name: string;
+  phone: string;
+  country_code: string;
+}
 
 interface ManualDeposit {
   reference: string;
@@ -12,11 +19,25 @@ interface ManualDeposit {
   created_at: string;
   screenshotUrl: string | null;
   senderNumber: string | null;
-  users: { id: string; name: string; phone: string; country_code: string };
+  users: Player;
+}
+
+interface AwaitingDeposit {
+  reference: string;
+  amount: number;
+  currency: string;
+  provider: string;
+  status: string;
+  network: string | null;
+  created_at: string;
+  users: Player;
 }
 
 export default function DepositsPage() {
-  const { data, error, reload, busy } = useAdminData<{ deposits: ManualDeposit[] }>("/api/admin/deposits");
+  const { data, error, reload, busy } = useAdminData<{
+    deposits: ManualDeposit[];
+    awaiting: AwaitingDeposit[];
+  }>("/api/admin/deposits");
   const [note, setNote] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const { confirm, dialog } = useDialog();
@@ -34,7 +55,13 @@ export default function DepositsPage() {
     }
     setWorking(reference);
     const res = await adminAction("/api/admin/deposits", "POST", { reference, action });
-    setNote(res.ok ? "Done." : (res.error ?? "Failed"));
+    setNote(
+      res.ok
+        ? action === "confirm"
+          ? "Approved. The money is in the wallet."
+          : "Done."
+        : (res.error ?? "Failed"),
+    );
     setWorking(null);
     if (res.ok) reload();
   };
@@ -43,6 +70,55 @@ export default function DepositsPage() {
     <div className="space-y-3">
       {note && <p className="text-[12px] text-[var(--text-muted)]">{note}</p>}
       {error && <p className="text-[13px] text-[var(--lose)]">{error}</p>}
+
+      <Panel title={`Deposits to approve${data ? ` (${data.awaiting?.length ?? 0})` : ""}`}>
+        {busy && !data ? (
+          <p className="p-6 text-[13px] text-[var(--text-muted)]">Loading…</p>
+        ) : !data?.awaiting?.length ? (
+          <p className="p-8 text-center text-[13px] text-[var(--text-muted)]">No deposits waiting for approval.</p>
+        ) : (
+          <Table head={["Player", "Amount", "Rail", "Status", "When", ""]}>
+            {data.awaiting.map((d) => (
+              <tr key={d.reference}>
+                <td className="px-3 py-2">
+                  <p className="font-semibold">{d.users.name}</p>
+                  <p className="text-[11px] text-[var(--text-faint)]">{d.users.phone}</p>
+                </td>
+                <td className="px-3 py-2 font-black text-[var(--accent)]">{money(d.amount, d.currency)}</td>
+                <td className="px-3 py-2 capitalize text-[var(--text-muted)]">
+                  {d.provider}
+                  {d.network ? ` · ${d.network}` : ""}
+                </td>
+                <td className="px-3 py-2">
+                  <Badge tone={d.status === "failed" ? "lose" : "pending"}>{d.status}</Badge>
+                </td>
+                <td className="px-3 py-2 text-[11px] text-[var(--text-faint)]">
+                  {new Date(d.created_at).toLocaleString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex gap-1.5">
+                    <Button
+                      tone="accent"
+                      disabled={working === d.reference}
+                      onClick={() => act(d.reference, "confirm")}
+                    >
+                      Approve
+                    </Button>
+                    <Button disabled={working === d.reference} onClick={() => act(d.reference, "reject")}>
+                      Reject
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Panel>
 
       <Panel title={`Manual deposits awaiting confirmation${data ? ` (${data.deposits.length})` : ""}`}>
         {busy && !data ? (

@@ -14,20 +14,21 @@ export async function GET() {
 
   const { data } = await supabase
     .from("payments")
-    .select("reference, amount, currency, status, metadata, created_at, users!inner(id, name, phone, country_code)")
-    .eq("provider", "manual")
-    .eq("status", "pending")
+    .select("reference, amount, currency, provider, status, metadata, created_at, users!inner(id, name, phone, country_code)")
+    .in("status", ["pending", "failed"])
+    .eq("metadata->>type", "deposit")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
 
-  const deposits = (data ?? []).filter((p) => {
-    const meta = (p.metadata ?? {}) as { type?: string };
-    return meta.type === "deposit";
-  });
+  const rows = data ?? [];
+  const manual = rows.filter((p) => p.provider === "manual" && p.status === "pending");
+  // Gateway charges that never credited. A missed webhook leaves them pending,
+  // and a rejected signature can mark a paid one failed, so both can be approved.
+  const awaiting = rows.filter((p) => p.provider !== "manual");
 
   // Screenshots live in a private bucket, so hand out short-lived signed URLs.
   const withUrls = await Promise.all(
-    deposits.map(async (d) => {
+    manual.map(async (d) => {
       const meta = (d.metadata ?? {}) as { screenshot?: string | null; sender_number?: string };
       let screenshotUrl: string | null = null;
       if (meta.screenshot) {
@@ -40,7 +41,22 @@ export async function GET() {
     }),
   );
 
-  return NextResponse.json({ deposits: withUrls });
+  return NextResponse.json({
+    deposits: withUrls,
+    awaiting: awaiting.map((d) => {
+      const meta = (d.metadata ?? {}) as { network?: string };
+      return {
+        reference: d.reference,
+        amount: d.amount,
+        currency: d.currency,
+        provider: d.provider,
+        status: d.status,
+        network: meta.network ?? null,
+        created_at: d.created_at,
+        users: d.users,
+      };
+    }),
+  });
 }
 
 /** Credit and resolve in one step, or delete a mistaken deposit. */
