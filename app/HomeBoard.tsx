@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Page } from "@/components/Shell";
 import { MatchList } from "@/components/MatchList";
 import { BetSlip } from "@/components/BetSlip";
+import { SupportChat } from "@/components/SupportChat";
 import { WinnersTicker } from "@/components/WinnersTicker";
 import { HeroBanner, SportTiles, SportPills, FilterBar } from "@/components/home/Panels";
 import { RecommendedCodes } from "@/components/home/RecommendedCodes";
@@ -60,6 +61,7 @@ export function HomeBoard() {
           <MatchList tab={tab} />
         </div>
         <BetSlip />
+        <SupportChat />
       </Page>
     );
   }
@@ -97,6 +99,7 @@ export function HomeBoard() {
       <NewsStrip />
 
       <BetSlip />
+      <SupportChat />
     </Page>
   );
 }

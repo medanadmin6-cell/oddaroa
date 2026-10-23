@@ -135,15 +135,27 @@ async function customTracker(rawId: string): Promise<Tracker> {
   const supabase = db();
   if (!supabase) return { events: [], stats: [] };
 
-  const { data } = await supabase
+  const loaded = await supabase
     .from("custom_matches")
-    .select("kickoff, sport, goal_timeline")
+    .select("kickoff, sport, goal_timeline, stoppage_first, stoppage_second")
     .eq("id", rawId)
     .maybeSingle();
+  const data = loaded.error
+    ? (
+        await supabase
+          .from("custom_matches")
+          .select("kickoff, sport, goal_timeline")
+          .eq("id", rawId)
+          .maybeSingle()
+      ).data
+    : loaded.data;
 
   if (!data) return { events: [], stats: [] };
 
-  const clock = matchClock(data.kickoff, data.sport ?? "football");
+  const clock = matchClock(data.kickoff, data.sport ?? "football", new Date(), {
+    first: Number(data.stoppage_first) || 0,
+    second: Number(data.stoppage_second) || 0,
+  });
   const timeline = (data.goal_timeline ?? []) as { minute: number; team: "home" | "away" }[];
 
   // Only goals that have actually happened by the current minute are shown; a

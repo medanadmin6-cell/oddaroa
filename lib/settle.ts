@@ -195,10 +195,18 @@ async function resolveResults(matchIds: string[]): Promise<Resolved> {
   const customIds = matchIds.filter((id) => id.startsWith("cm_")).map((id) => id.slice(3));
 
   if (customIds.length) {
-    const { data: matches } = await supabase
+    const loaded = await supabase
       .from("custom_matches")
-      .select("id, kickoff, sport, goal_timeline, final_home, final_away, finished")
+      .select("id, kickoff, sport, goal_timeline, final_home, final_away, finished, stoppage_first, stoppage_second")
       .in("id", customIds);
+    const matches = loaded.error
+      ? (
+          await supabase
+            .from("custom_matches")
+            .select("id, kickoff, sport, goal_timeline, final_home, final_away, finished")
+            .in("id", customIds)
+        ).data
+      : loaded.data;
 
     for (const m of matches ?? []) {
       // An operator "Set result" is authoritative and ends the argument.
@@ -217,7 +225,10 @@ async function resolveResults(matchIds: string[]): Promise<Resolved> {
 
       // Otherwise the clock decides when the match is over, and the scripted
       // timeline gives the score it ended on.
-      const clock = matchClock(m.kickoff, m.sport ?? "football");
+      const clock = matchClock(m.kickoff, m.sport ?? "football", new Date(), {
+        first: Number(m.stoppage_first) || 0,
+        second: Number(m.stoppage_second) || 0,
+      });
       if (!clock.isOver) continue;
 
       const timeline = (m.goal_timeline ?? []) as { minute: number; team: "home" | "away" }[];

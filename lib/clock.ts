@@ -30,11 +30,31 @@ const REGULATION: Record<string, { half: number; halves: number; breakLen: numbe
   hockey: { half: 30, halves: 2, breakLen: 15 },
 };
 
-export function matchClock(kickoff: string | Date, sport = "football", now = new Date()): MatchClock {
+export interface Stoppage {
+  /** Minutes added after the first half, shown as 45+1, 45+2, … */
+  first?: number;
+  /** Minutes added after the second half, shown as 90+1, 90+2, … */
+  second?: number;
+}
+
+function added(n: number | undefined): number {
+  if (!n || !Number.isFinite(n) || n < 0) return 0;
+  return Math.min(20, Math.floor(n));
+}
+
+export function matchClock(
+  kickoff: string | Date,
+  sport = "football",
+  now = new Date(),
+  stoppage?: Stoppage,
+): MatchClock {
   const ko = typeof kickoff === "string" ? new Date(kickoff) : kickoff;
   const reg = REGULATION[sport] ?? REGULATION.football;
   const elapsedMs = now.getTime() - ko.getTime();
   const elapsed = Math.floor(elapsedMs / 60000);
+  const s1 = added(stoppage?.first);
+  const s2 = added(stoppage?.second);
+  const secs = String(Math.floor(elapsedMs / 1000) % 60).padStart(2, "0");
 
   if (elapsed < 0) {
     return {
@@ -47,30 +67,50 @@ export function matchClock(kickoff: string | Date, sport = "football", now = new
   }
 
   if (elapsed < reg.half) {
-    const secs = Math.floor(elapsedMs / 1000) % 60;
     return {
       phase: "first",
       minute: elapsed,
       isLive: true,
       isOver: false,
-      label: `${elapsed}:${String(secs).padStart(2, "0")}`,
+      label: `${elapsed}:${secs}`,
     };
   }
 
-  if (elapsed < reg.half + reg.breakLen) {
+  const afterFirst = reg.half + s1;
+  if (elapsed < afterFirst) {
+    return {
+      phase: "first",
+      minute: reg.half,
+      isLive: true,
+      isOver: false,
+      label: `${reg.half}+${elapsed - reg.half + 1}`,
+    };
+  }
+
+  if (elapsed < afterFirst + reg.breakLen) {
     return { phase: "ht", minute: reg.half, isLive: true, isOver: false, label: "HT" };
   }
 
-  const full = reg.half * reg.halves + reg.breakLen;
-  if (elapsed < full) {
-    const inSecond = elapsed - reg.breakLen;
-    const secs = Math.floor(elapsedMs / 1000) % 60;
+  const secondStart = afterFirst + reg.breakLen;
+  const secondEnd = secondStart + reg.half;
+  if (elapsed < secondEnd) {
+    const inSecond = reg.half + (elapsed - secondStart);
     return {
       phase: "second",
       minute: inSecond,
       isLive: true,
       isOver: false,
-      label: `${inSecond}:${String(secs).padStart(2, "0")}`,
+      label: `${inSecond}:${secs}`,
+    };
+  }
+
+  if (elapsed < secondEnd + s2) {
+    return {
+      phase: "second",
+      minute: reg.half * reg.halves,
+      isLive: true,
+      isOver: false,
+      label: `${reg.half * reg.halves}+${elapsed - secondEnd + 1}`,
     };
   }
 

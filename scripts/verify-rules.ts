@@ -59,6 +59,12 @@ console.log("\nMatch clock");
 
   const ft = matchClock(minsAgo(120));
   check("past full time is over", ft.isOver && ft.label === "FT" && !ft.isLive);
+
+  const added = matchClock(minsAgo(46), "football", new Date(), { first: 3 });
+  check("first-half stoppage stays in the first half", added.phase === "first" && added.label === "45+2");
+
+  const stillOpen = matchClock(minsAgo(106), "football", new Date(), { second: 4 });
+  check("second-half stoppage holds full time back", stillOpen.phase === "second" && stillOpen.label === "90+2" && !stillOpen.isOver);
 }
 
 console.log("\nScripted goal timeline");

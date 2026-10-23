@@ -22,6 +22,8 @@ interface CustomMatch {
   is_live: boolean;
   is_locked: boolean;
   best_odds: boolean;
+  stoppage_first?: number | null;
+  stoppage_second?: number | null;
   final_home: number | null;
   final_away: number | null;
   finished: boolean;
@@ -36,6 +38,8 @@ const BLANK = {
   odds_draw: 3.2,
   odds_away: 3.5,
   best_odds: false,
+  stoppage_first: 0,
+  stoppage_second: 0,
   goal_timeline: [] as Goal[],
   home_crest: null as string | null,
   away_crest: null as string | null,
@@ -96,6 +100,32 @@ export default function CustomMatchesPage() {
     await patch(m.id, { final_home: h, final_away: a });
   };
 
+  const editStoppage = async (m: CustomMatch) => {
+    const values = await ask({
+      title: "Stoppage time",
+      description:
+        `${m.home_team} v ${m.away_team}. Added after each half and shown as 45+ and 90+. ` +
+        "The match still runs 45 minutes, 15 minutes half time, then 45 minutes.",
+      fields: [
+        {
+          name: "first",
+          label: "1st half stoppage (min)",
+          defaultValue: String(Number(m.stoppage_first) || 0),
+          validate: validators.integer(0, 20),
+        },
+        {
+          name: "second",
+          label: "2nd half stoppage (min)",
+          defaultValue: String(Number(m.stoppage_second) || 0),
+          validate: validators.integer(0, 20),
+        },
+      ],
+      confirmLabel: "Save",
+    });
+    if (!values) return;
+    await patch(m.id, { stoppage_first: Number(values.first), stoppage_second: Number(values.second) });
+  };
+
   const remove = async (m: CustomMatch) => {
     const ok = await confirm({
       title: "Delete this match?",
@@ -129,6 +159,31 @@ export default function CustomMatchesPage() {
           <Input placeholder="Home odds" type="number" value={String(form.odds_home)} onChange={(v) => setForm({ ...form, odds_home: Number(v) })} />
           <Input placeholder="Draw odds" type="number" value={String(form.odds_draw)} onChange={(v) => setForm({ ...form, odds_draw: Number(v) })} />
           <Input placeholder="Away odds" type="number" value={String(form.odds_away)} onChange={(v) => setForm({ ...form, odds_away: Number(v) })} />
+          <label className="block text-[11px] font-semibold text-[var(--text-muted)]">
+            1st half stoppage (min)
+            <input
+              type="number"
+              min={0}
+              max={20}
+              value={form.stoppage_first}
+              onChange={(e) => setForm({ ...form, stoppage_first: Number(e.target.value) })}
+              className="mt-1 w-full rounded-lg bg-[var(--surface-2)] px-2.5 py-2 text-[12px] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--accent)]"
+            />
+          </label>
+          <label className="block text-[11px] font-semibold text-[var(--text-muted)]">
+            2nd half stoppage (min)
+            <input
+              type="number"
+              min={0}
+              max={20}
+              value={form.stoppage_second}
+              onChange={(e) => setForm({ ...form, stoppage_second: Number(e.target.value) })}
+              className="mt-1 w-full rounded-lg bg-[var(--surface-2)] px-2.5 py-2 text-[12px] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--accent)]"
+            />
+          </label>
+          <p className="text-[11px] leading-relaxed text-[var(--text-muted)] sm:col-span-2">
+            The match goes live on its own at kickoff: 45 minutes, 15 minutes half time, 45 minutes, plus any stoppage time you add.
+          </p>
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-1.5 text-[11px] font-semibold">
               <input
@@ -213,6 +268,9 @@ export default function CustomMatchesPage() {
                   <div className="flex flex-wrap gap-1">
                     <Button onClick={() => setScripting(m)}>
                       Goals ({(m.goal_timeline ?? []).length})
+                    </Button>
+                    <Button onClick={() => editStoppage(m)}>
+                      Stoppage {Number(m.stoppage_first) || 0}+{Number(m.stoppage_second) || 0}
                     </Button>
                     <Button onClick={() => setCrestsFor(m)}>Crests</Button>
                     <Button onClick={() => patch(m.id, { is_live: !m.is_live })}>

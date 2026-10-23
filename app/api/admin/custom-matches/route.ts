@@ -4,6 +4,13 @@ import { requireCustomMatchAdmin } from "@/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
 
+/** Stoppage is a whole number of minutes, capped so a typo cannot pin a match open. */
+function stoppageMinutes(value: unknown): number {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(20, n);
+}
+
 /** Operator fixtures: create, run and finalise. */
 export async function GET() {
   if (!(await requireCustomMatchAdmin())) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
@@ -29,30 +36,43 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Teams and kickoff are required" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("custom_matches")
-    .insert({
-      home_team: body.home_team,
-      away_team: body.away_team,
-      home_crest: body.home_crest ?? null,
-      away_crest: body.away_crest ?? null,
-      league: body.league || "Oddaroa Special",
-      sport: body.sport || "football",
-      kickoff: body.kickoff,
-      odds_home: Number(body.odds_home) || 2.0,
-      odds_draw: Number(body.odds_draw) || 3.2,
-      odds_away: Number(body.odds_away) || 3.5,
-      goal_timeline: body.goal_timeline ?? [],
-      is_live: Boolean(body.is_live),
-      is_locked: Boolean(body.is_locked),
-      best_odds: Boolean(body.best_odds),
-    })
-    .select("*")
-    .single();
+  const first = stoppageMinutes(body.stoppage_first);
+  const second = stoppageMinutes(body.stoppage_second);
+  const row: Record<string, unknown> = {
+    home_team: body.home_team,
+    away_team: body.away_team,
+    home_crest: body.home_crest ?? null,
+    away_crest: body.away_crest ?? null,
+    league: body.league || "Oddaroa Special",
+    sport: body.sport || "football",
+    kickoff: body.kickoff,
+    odds_home: Number(body.odds_home) || 2.0,
+    odds_draw: Number(body.odds_draw) || 3.2,
+    odds_away: Number(body.odds_away) || 3.5,
+    goal_timeline: body.goal_timeline ?? [],
+    stoppage_first: first,
+    stoppage_second: second,
+    is_live: Boolean(body.is_live),
+    is_locked: Boolean(body.is_locked),
+    best_odds: Boolean(body.best_odds),
+  };
+
+  let { data, error } = await supabase.from("custom_matches").insert(row).select("*").single();
+  // A database that has not taken the stoppage columns yet can still create a
+  // match, as long as the operator did not ask for extra minutes.
+  if (error && /stoppage_/.test(error.message) && first === 0 && second === 0) {
+    delete row.stoppage_first;
+    delete row.stoppage_second;
+    ({ data, error } = await supabase.from("custom_matches").insert(row).select("*").single());
+  }
 
   if (error) {
     console.error("[admin] custom match insert", error);
-    return NextResponse.json({ error: "Could not create the match" }, { status: 500 });
+    const missing = /stoppage_/.test(error.message ?? "");
+    return NextResponse.json(
+      { error: missing ? "Add the stoppage columns before saving extra minutes." : "Could not create the match" },
+      { status: 500 },
+    );
   }
   return NextResponse.json({ match: data });
 }
@@ -73,6 +93,8 @@ export async function PATCH(req: Request) {
   ]) {
     if (field in body) patch[field] = body[field];
   }
+  if ("stoppage_first" in body) patch.stoppage_first = stoppageMinutes(body.stoppage_first);
+  if ("stoppage_second" in body) patch.stoppage_second = stoppageMinutes(body.stoppage_second);
 
   // "Set result" finalises the match; settlement then treats that score as
   // authoritative rather than deriving one from the timeline.
@@ -90,7 +112,13 @@ export async function PATCH(req: Request) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: "Could not update the match" }, { status: 500 });
+  if (error) {
+    const missing = /stoppage_/.test(error.message ?? "");
+    return NextResponse.json(
+      { error: missing ? "Add the stoppage columns before saving extra minutes." : "Could not update the match" },
+      { status: 500 },
+    );
+  }
   return NextResponse.json({ match: data });
 }
 

@@ -58,6 +58,8 @@ interface CustomRow {
   odds_draw: number;
   odds_away: number;
   goal_timeline: { minute: number; team: "home" | "away" }[];
+  stoppage_first?: number | null;
+  stoppage_second?: number | null;
   is_live: boolean;
   is_locked: boolean;
   best_odds: boolean;
@@ -206,7 +208,10 @@ async function loadCustom(): Promise<FeedMatch[]> {
   const out: FeedMatch[] = [];
 
   for (const row of data as CustomRow[]) {
-    const clock = matchClock(row.kickoff, row.sport ?? "football");
+    const clock = matchClock(row.kickoff, row.sport ?? "football", new Date(), {
+      first: Number(row.stoppage_first) || 0,
+      second: Number(row.stoppage_second) || 0,
+    });
     if (clock.isOver) continue; // Finished matches drop out of the feed.
 
     const timeline = row.goal_timeline ?? [];
