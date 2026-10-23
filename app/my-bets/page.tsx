@@ -8,8 +8,6 @@ import { Page } from "@/components/Shell";
 import { useSession } from "@/lib/store";
 import { formatMoney } from "@/lib/countries";
 import { marketName } from "@/lib/markets";
-import { WinCelebration, hasCelebrated, markCelebrated } from "@/components/WinCelebration";
-
 interface Leg {
   match_id: string;
   home_team: string;
@@ -70,8 +68,6 @@ export default function MyBetsPage() {
   const [tab, setTab] = useState<"open" | "history">("open");
   const [filter, setFilter] = useState("all");
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  // The first winning ticket the player has not been shown yet.
-  const [celebrating, setCelebrating] = useState<Ticket | null>(null);
 
   useEffect(() => {
     if (hydrated && !player) router.replace("/login");
@@ -85,9 +81,6 @@ export default function MyBetsPage() {
       .then((j) => {
         const bets: Ticket[] = j.bets ?? [];
         setTickets(bets);
-
-        const fresh = bets.find((b) => b.status === "won" && !hasCelebrated(b.code));
-        if (fresh && markCelebrated(fresh.code)) setCelebrating(fresh);
       })
       .catch(() => setTickets([]));
   }, [player]);
@@ -290,20 +283,9 @@ export default function MyBetsPage() {
             No tickets here yet.
           </p>
         ) : (
-          shownHistory.map((t) => (
-            <HistoryTicketCard key={t.id} ticket={t} onCelebrate={setCelebrating} />
-          ))
+          shownHistory.map((t) => <HistoryTicketCard key={t.id} ticket={t} />)
         )}
       </div>
-
-      {celebrating && (
-        <WinCelebration
-          code={celebrating.code}
-          amount={Number(celebrating.payout ?? celebrating.potential_win)}
-          currency={celebrating.currency}
-          onClose={() => setCelebrating(null)}
-        />
-      )}
     </Page>
   );
 }
@@ -424,13 +406,7 @@ function OpenTicketCard({
 
 // ----------------------------------------------------------- history card
 
-function HistoryTicketCard({
-  ticket,
-  onCelebrate,
-}: {
-  ticket: Ticket;
-  onCelebrate: (t: Ticket) => void;
-}) {
+function HistoryTicketCard({ ticket }: { ticket: Ticket }) {
   const style = STATUS_STYLE[ticket.status] ?? STATUS_STYLE.pending;
   const inner = (
     <>
@@ -473,19 +449,9 @@ function HistoryTicketCard({
 
   return (
     <article className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--bg)]">
-      {ticket.status === "won" ? (
-        <button
-          onClick={() => onCelebrate(ticket)}
-          className="block w-full px-4 py-3 text-left"
-          aria-label={`You won on ticket ${ticket.code}`}
-        >
-          {inner}
-        </button>
-      ) : (
-        <Link href={`/my-bets/${ticket.code}`} className="block w-full px-4 py-3 text-left">
-          {inner}
-        </Link>
-      )}
+      <Link href={`/my-bets/${ticket.code}`} className="block w-full px-4 py-3 text-left">
+        {inner}
+      </Link>
 
       <Link
         href={`/my-bets/${ticket.code}`}

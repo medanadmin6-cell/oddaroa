@@ -7,13 +7,11 @@ import Image from "next/image";
  * vector gets you clean shapes and stops well short of looking like metal, and
  * this is a win screen, so it should look expensive.
  *
- * The source art arrived as a JPEG on white. `public/trophy.png` is that file
- * keyed to transparency — the background flood-filled away from the edges so the
- * highlights inside the cup survive, and the near-white burst ramped to a soft
- * alpha so it fades into the dark instead of ending on a hard white edge.
+ * `public/trophy.png` is the gold cup with the background keyed out, so it
+ * sits on the ticket instead of inside a box.
  */
-const NATURAL_WIDTH = 700;
-const NATURAL_HEIGHT = 649;
+const NATURAL_WIDTH = 1024;
+const NATURAL_HEIGHT = 1024;
 
 export function Trophy({
   size = 220,

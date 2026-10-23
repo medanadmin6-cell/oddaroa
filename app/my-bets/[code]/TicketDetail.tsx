@@ -12,10 +12,10 @@ import {
   Trophy,
   CircleCheck,
   CircleX,
-  Share2,
   LineChart,
 } from "lucide-react";
 import { copyText } from "@/lib/clipboard";
+import { WinCelebration, hasCelebrated, markCelebrated } from "@/components/WinCelebration";
 import { useSlip, useSession, type SlipLeg } from "@/lib/store";
 import { formatMoney } from "@/lib/countries";
 import { marketName } from "@/lib/markets";
@@ -95,6 +95,7 @@ export function TicketDetail({ code }: { code: string }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
+  const [showCup, setShowCup] = useState(false);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
@@ -117,6 +118,7 @@ export function TicketDetail({ code }: { code: string }) {
         }
         setData(json);
         setError(null);
+        if (json.bet?.status === "won" && !hasCelebrated(json.bet.code)) setShowCup(true);
       } catch {
         if (alive) setError("Could not load this ticket");
       }
@@ -343,22 +345,21 @@ export function TicketDetail({ code }: { code: string }) {
 
         {/* Congratulations, on a won ticket only. */}
         {won && (
-          <div className="mx-auto mt-4 flex max-w-2xl items-center gap-3 rounded-xl bg-[var(--bg-elevated)] px-3 py-2.5">
-            <Confetti />
+          <div className="mx-auto mt-4 flex max-w-2xl items-center gap-3 rounded-xl bg-[#f5c518] px-3 py-2.5 text-[#1a1400]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/10">
+              <Trophy size={18} strokeWidth={2.2} />
+            </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-black leading-tight text-[var(--text-bright)]">
-                Congratulations!
-              </span>
-              <span className="block truncate text-[13px] font-medium text-[var(--accent)]">
+              <span className="block text-[15px] font-black leading-tight">You Won!</span>
+              <span className="block truncate text-[12px] font-bold uppercase">
                 {data.owner?.name ?? player.name}
               </span>
             </span>
             <button
               onClick={showOff}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-[13px] font-black text-[var(--accent-ink)]"
+              className="shrink-0 rounded-lg bg-[#1a1400] px-3 py-2 text-[12px] font-black tracking-wide text-white"
             >
-              {shared ? <Check size={14} strokeWidth={2.6} /> : <Share2 size={14} strokeWidth={2.2} />}
-              {shared ? "Copied" : "Show Off"}
+              {shared ? "COPIED" : "SHOW OFF"}
             </button>
           </div>
         )}
@@ -427,6 +428,18 @@ export function TicketDetail({ code }: { code: string }) {
           </button>
         </div>
       </div>
+
+      {showCup && won && (
+        <WinCelebration
+          code={bet.code}
+          amount={Number(bet.payout ?? bet.potential_win)}
+          currency={bet.currency}
+          onClose={() => {
+            markCelebrated(bet.code);
+            setShowCup(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -458,31 +471,6 @@ function describeOutcome(leg: Leg): string | null {
     return `${h}:${a}`;
   }
   return null;
-}
-
-/** The burst beside the congratulations line. */
-function Confetti() {
-  return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true" className="shrink-0">
-      <circle cx="17" cy="20" r="10" fill="#FFD63A" />
-      <circle cx="17" cy="20" r="10" fill="none" stroke="#E9A21F" strokeWidth="1.5" />
-      <path
-        d="M14.6 16.4h5c1.9 0 3 .9 3 2.4 0 1-.6 1.8-1.5 2.1 1.2.3 1.9 1.1 1.9 2.3 0 1.7-1.3 2.7-3.4 2.7h-5v-9.5z"
-        fill="#8A5A08"
-      />
-      <g stroke="#9FF611" strokeWidth="2" strokeLinecap="round">
-        <path d="M30 9l4-4M31 17l5-1" />
-      </g>
-      <g stroke="#FF5470" strokeWidth="2" strokeLinecap="round">
-        <path d="M29 27l5 4M8 8l-4-3" />
-      </g>
-      <g stroke="#3685E2" strokeWidth="2" strokeLinecap="round">
-        <path d="M6 30l-3 4M35 24l3 3" />
-      </g>
-      <circle cx="33" cy="12" r="1.6" fill="#FFFFFF" />
-      <circle cx="5" cy="18" r="1.4" fill="#9FF611" />
-    </svg>
-  );
 }
 
 function Header({ onBack }: { onBack: () => void }) {
