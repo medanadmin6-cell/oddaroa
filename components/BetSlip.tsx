@@ -54,6 +54,8 @@ export function BetSlip() {
 
   const player = useSession((s) => s.player);
   const setBalance = useSession((s) => s.setBalance);
+  const setOpenBets = useSession((s) => s.setOpenBets);
+  const openBets = useSession((s) => s.openBets);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -152,6 +154,7 @@ export function BetSlip() {
         oddsChanged: json.oddsChanged ?? [],
       });
       if (typeof json.balance === "number") setBalance(json.balance);
+      setOpenBets(openBets + (Number(json.lines) || 1));
       // Empty the slip but leave the sheet open: the receipt is the next thing
       // the player should see, and clear() would close it out from under them.
       clearLegs();

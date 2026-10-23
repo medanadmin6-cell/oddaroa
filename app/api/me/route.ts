@@ -35,7 +35,15 @@ export async function GET(req: Request) {
   const gate = checkWithdrawalGate({ ...user, isPartner: exempt }, 0);
 
   // Tier points come from turnover, so they are summed off the stakes.
-  const { data: staked } = await supabase.from("bets").select("stake").eq("user_id", user.id);
+  // The open count is the badge on My Bets.
+  const [{ data: staked }, { count: openBets }] = await Promise.all([
+    supabase.from("bets").select("stake").eq("user_id", user.id),
+    supabase
+      .from("bets")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "pending"),
+  ]);
   const tierPoints = (staked ?? []).reduce((sum, b) => sum + Number(b.stake), 0);
 
   // A partner betting on their own account sees a way back to the dashboard.
@@ -64,5 +72,6 @@ export async function GET(req: Request) {
     },
     partner: partner ?? null,
     tierPoints: Math.floor(tierPoints),
+    openBets: openBets ?? 0,
   });
 }

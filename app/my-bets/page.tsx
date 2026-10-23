@@ -63,6 +63,7 @@ export default function MyBetsPage() {
   const player = useSession((s) => s.player);
   const hydrated = useSession((s) => s.hydrated);
   const setBalance = useSession((s) => s.setBalance);
+  const setOpenBets = useSession((s) => s.setOpenBets);
 
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [details, setDetails] = useState<Record<string, LiveDetail>>({});
@@ -155,6 +156,10 @@ export default function MyBetsPage() {
   );
 
   const open = useMemo(() => tickets?.filter((t) => t.status === "pending") ?? [], [tickets]);
+
+  useEffect(() => {
+    if (tickets) setOpenBets(open.length);
+  }, [tickets, open.length, setOpenBets]);
   const history = useMemo(() => tickets?.filter((t) => t.status !== "pending") ?? [], [tickets]);
 
   const shownOpen = useMemo(() => {

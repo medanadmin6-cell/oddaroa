@@ -83,6 +83,8 @@ export function TicketDetail({ code }: { code: string }) {
   const player = useSession((s) => s.player);
   const hydrated = useSession((s) => s.hydrated);
   const setBalance = useSession((s) => s.setBalance);
+  const openBets = useSession((s) => s.openBets);
+  const setOpenBets = useSession((s) => s.setOpenBets);
   const load = useSlip((s) => s.load);
 
   const [data, setData] = useState<Payload | null>(null);
@@ -152,6 +154,7 @@ export function TicketDetail({ code }: { code: string }) {
       }
       setNote(`Cashed out for ${formatMoney(json.amount, data.bet.currency)}.`);
       if (typeof json.balance === "number") setBalance(json.balance);
+      if (data.bet.status === "pending") setOpenBets(openBets - 1);
       reload();
     } catch {
       setNote("Network problem. Try again.");

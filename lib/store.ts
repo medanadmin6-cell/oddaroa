@@ -134,10 +134,13 @@ export interface Player {
 
 interface SessionState {
   player: Player | null;
+  /** Open tickets, shown as the badge on My Bets. */
+  openBets: number;
   hydrated: boolean;
   signIn: (player: Player) => void;
   signOut: () => void;
   setBalance: (balance: number) => void;
+  setOpenBets: (count: number) => void;
   markHydrated: () => void;
 }
 
@@ -145,16 +148,18 @@ export const useSession = create<SessionState>()(
   persist(
     (set) => ({
       player: null,
+      openBets: 0,
       hydrated: false,
       signIn: (player) => set({ player }),
-      signOut: () => set({ player: null }),
+      signOut: () => set({ player: null, openBets: 0 }),
       setBalance: (balance) =>
         set((s) => (s.player ? { player: { ...s.player, balance } } : s)),
+      setOpenBets: (count) => set({ openBets: Math.max(0, Math.floor(count) || 0) }),
       markHydrated: () => set({ hydrated: true }),
     }),
     {
       name: "betlixx-session",
-      partialize: (s) => ({ player: s.player }),
+      partialize: (s) => ({ player: s.player, openBets: s.openBets }),
       onRehydrateStorage: () => (state) => state?.markHydrated(),
     },
   ),

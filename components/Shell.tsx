@@ -26,6 +26,7 @@ function HeaderActions({ onOpenAccount }: { onOpenAccount: () => void }) {
   const player = useSession((s) => s.player);
   const hydrated = useSession((s) => s.hydrated);
   const setBalance = useSession((s) => s.setBalance);
+  const setOpenBets = useSession((s) => s.setOpenBets);
 
   // Keep the header balance honest without the player having to reload.
   useEffect(() => {
@@ -36,7 +37,10 @@ function HeaderActions({ onOpenAccount }: { onOpenAccount: () => void }) {
         const res = await fetch(`/api/me?userId=${player.id}`);
         if (!res.ok) return;
         const json = await res.json();
-        if (alive && json.user) setBalance(Number(json.user.balance));
+        if (alive && json.user) {
+          setBalance(Number(json.user.balance));
+          if (typeof json.openBets === "number") setOpenBets(json.openBets);
+        }
       } catch {
         /* the header balance is not worth an error state */
       }
@@ -47,7 +51,7 @@ function HeaderActions({ onOpenAccount }: { onOpenAccount: () => void }) {
       alive = false;
       clearInterval(timer);
     };
-  }, [player?.id, setBalance, player]);
+  }, [player?.id, setBalance, setOpenBets, player]);
 
   if (!hydrated) return <div className="h-7 w-32 rounded-lg bg-[var(--surface-2)]" />;
 
@@ -195,11 +199,13 @@ function NavItem({
   label,
   Icon,
   active,
+  badge,
 }: {
   href: string;
   label: string;
   Icon: (typeof NAV_LEFT)[number]["Icon"];
   active: boolean;
+  badge?: number;
 }) {
   return (
     <Link
@@ -210,7 +216,14 @@ function NavItem({
       {active && (
         <span className="absolute top-0 h-1 w-8 rounded-full bg-[#ff7a1a] shadow-[0_0_8px_rgba(255,122,26,0.7)]" />
       )}
-      <Icon size={20} strokeWidth={1.8} />
+      <span className="relative">
+        <Icon size={20} strokeWidth={1.8} />
+        {badge != null && (
+          <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-[var(--lose)] px-0.5 text-[9px] font-black leading-none text-white">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
+      </span>
       <span className="text-[10px] font-bold">{label}</span>
     </Link>
   );
@@ -240,6 +253,8 @@ function SlipCircle() {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const player = useSession((s) => s.player);
+  const openBets = useSession((s) => s.openBets);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/20 bg-[var(--chrome)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg lg:hidden">
@@ -249,7 +264,12 @@ export function BottomNav() {
         ))}
         <SlipCircle />
         {NAV_RIGHT.map((item) => (
-          <NavItem key={item.label} {...item} active={pathname === item.href} />
+          <NavItem
+            key={item.label}
+            {...item}
+            active={pathname === item.href}
+            badge={item.href === "/my-bets" && player ? openBets : undefined}
+          />
         ))}
       </div>
     </nav>
