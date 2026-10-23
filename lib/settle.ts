@@ -43,6 +43,22 @@ type Leg = {
 /** A judged leg needs the market key as well as the outcome. */
 type Resolved = Map<string, MatchResult>;
 
+/**
+ * Columns the fallback select always returns, plus stoppage when the database
+ * has those columns. A missing column is absent here and read as 0.
+ */
+type SettleCustomRow = {
+  id: string;
+  kickoff: string;
+  sport: string | null;
+  goal_timeline: { minute: number; team: "home" | "away" }[] | null;
+  final_home: number | null;
+  final_away: number | null;
+  finished: boolean;
+  stoppage_first?: number | null;
+  stoppage_second?: number | null;
+};
+
 export async function settleBets(opts: { userId?: string; force?: boolean } = {}): Promise<SettleReport> {
   const supabase = db();
   if (!supabase) return { skipped: "no-db", ticketsChecked: 0, won: 0, lost: 0, stillPending: 0 };
@@ -199,14 +215,16 @@ async function resolveResults(matchIds: string[]): Promise<Resolved> {
       .from("custom_matches")
       .select("id, kickoff, sport, goal_timeline, final_home, final_away, finished, stoppage_first, stoppage_second")
       .in("id", customIds);
-    const matches = loaded.error
-      ? (
-          await supabase
-            .from("custom_matches")
-            .select("id, kickoff, sport, goal_timeline, final_home, final_away, finished")
-            .in("id", customIds)
-        ).data
-      : loaded.data;
+    const matches = (
+      loaded.error
+        ? (
+            await supabase
+              .from("custom_matches")
+              .select("id, kickoff, sport, goal_timeline, final_home, final_away, finished")
+              .in("id", customIds)
+          ).data
+        : loaded.data
+    ) as SettleCustomRow[] | null;
 
     for (const m of matches ?? []) {
       // An operator "Set result" is authoritative and ends the argument.

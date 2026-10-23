@@ -16,6 +16,18 @@ import { matchClock } from "./clock";
 const BASE = "https://v3.football.api-sports.io";
 const TTL_MS = 20_000;
 
+/**
+ * Columns the fallback select always returns, plus stoppage when the database
+ * has those columns. A missing column is absent here and read as 0.
+ */
+type TrackerCustomRow = {
+  kickoff: string;
+  sport: string | null;
+  goal_timeline: { minute: number; team: "home" | "away" }[] | null;
+  stoppage_first?: number | null;
+  stoppage_second?: number | null;
+};
+
 export type EventKind = "goal" | "card" | "sub" | "var" | "other";
 
 export interface TrackerEvent {
@@ -140,15 +152,17 @@ async function customTracker(rawId: string): Promise<Tracker> {
     .select("kickoff, sport, goal_timeline, stoppage_first, stoppage_second")
     .eq("id", rawId)
     .maybeSingle();
-  const data = loaded.error
-    ? (
-        await supabase
-          .from("custom_matches")
-          .select("kickoff, sport, goal_timeline")
-          .eq("id", rawId)
-          .maybeSingle()
-      ).data
-    : loaded.data;
+  const data = (
+    loaded.error
+      ? (
+          await supabase
+            .from("custom_matches")
+            .select("kickoff, sport, goal_timeline")
+            .eq("id", rawId)
+            .maybeSingle()
+        ).data
+      : loaded.data
+  ) as TrackerCustomRow | null;
 
   if (!data) return { events: [], stats: [] };
 
