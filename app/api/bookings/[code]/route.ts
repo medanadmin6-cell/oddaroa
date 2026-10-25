@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
+import { getMatchDetail } from "@/lib/fixtures";
 
 /** Load a booked slip by its code. */
 export async function GET(_req: Request, ctx: { params: Promise<{ code: string }> }) {
@@ -37,7 +38,15 @@ export async function GET(_req: Request, ctx: { params: Promise<{ code: string }
     return NextResponse.json({ error: "That booking code has expired" }, { status: 410 });
   }
 
-  return NextResponse.json({ booking });
+  // Once every match on the booking has been played, opening the code should
+  // show that game at full time rather than a slip that can still be bet.
+  const selections = (booking.selections ?? []) as { matchId?: string }[];
+  const ids = [...new Set(selections.map((s) => s.matchId).filter((id): id is string => Boolean(id)))];
+  const matches = await Promise.all(ids.map((id) => getMatchDetail(id, { includeFinished: true })));
+  const played = ids.length > 0 && matches.every((m) => m?.finished);
+  const matchId = played ? matches[0]?.id ?? null : null;
+
+  return NextResponse.json({ booking, played, matchId });
 }
 
 

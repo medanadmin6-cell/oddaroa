@@ -43,6 +43,8 @@ export interface FeedMatch {
   scoreAway: number | null;
   bestOdds: boolean;
   markets: Market[];
+  /** The match has been played. It can still be opened, but it is not bettable. */
+  finished?: boolean;
 }
 
 interface CustomRow {
@@ -192,6 +194,70 @@ export function fullDerivedMarkets(home: number, draw: number, away: number): Ma
   ];
 }
 
+/** One operator fixture as the board would show it, including a match that is over. */
+function customToFeed(row: CustomRow): FeedMatch | null {
+  const clock = matchClock(row.kickoff, row.sport ?? "football", new Date(), {
+    first: Number(row.stoppage_first) || 0,
+    second: Number(row.stoppage_second) || 0,
+  });
+  const over = row.finished || clock.isOver;
+  const timeline = row.goal_timeline ?? [];
+  const played =
+    row.final_home !== null && row.final_away !== null
+      ? { home: Number(row.final_home), away: Number(row.final_away) }
+      : scoreFromTimeline(timeline, { ...clock, isOver: true, minute: clock.minute });
+  const score = over ? played : clock.isLive ? scoreFromTimeline(timeline, clock) : { home: 0, away: 0 };
+
+  const base = {
+    home: Number(row.odds_home),
+    draw: Number(row.odds_draw),
+    away: Number(row.odds_away),
+  };
+
+  // Odds move with the scoreline once the match is running. This is
+  // presentational only — live betting is locked, so no ticket is ever
+  // struck at a drifted price.
+  const live = !over && (clock.isLive || row.is_live);
+  const shown = live ? driftOdds(base, score, clock.minute) : base;
+
+  const boosted = {
+    home: applyBoost(shown.home, row.best_odds),
+    draw: applyBoost(shown.draw, row.best_odds),
+    away: applyBoost(shown.away, row.best_odds),
+  };
+
+  return {
+    id: `cm_${row.id}`,
+    source: "custom",
+    league: row.league,
+    country: "Oddaroa",
+    sport: row.sport ?? "football",
+    homeTeam: row.home_team,
+    awayTeam: row.away_team,
+    homeCrest: row.home_crest,
+    awayCrest: row.away_crest,
+    kickoff: row.kickoff,
+    isLive: live,
+    isLocked: over || live || row.is_locked,
+    postponed: false,
+    finished: over,
+    minuteLabel: over ? "FT" : clock.label,
+    scoreHome: over || live ? score.home : null,
+    scoreAway: over || live ? score.away : null,
+    bestOdds: row.best_odds,
+    markets: fullDerivedMarkets(boosted.home, boosted.draw, boosted.away),
+  };
+}
+
+async function loadFinishedCustom(rawId: string): Promise<FeedMatch | null> {
+  const supabase = db();
+  if (!supabase) return null;
+  const { data } = await supabase.from("custom_matches").select("*").eq("id", rawId).maybeSingle();
+  if (!data) return null;
+  const match = customToFeed(data as CustomRow);
+  return match?.finished ? match : null;
+}
+
 async function loadCustom(): Promise<FeedMatch[]> {
   const supabase = db();
   if (!supabase) return []; // Degrade to upstream only.
@@ -208,55 +274,9 @@ async function loadCustom(): Promise<FeedMatch[]> {
   const out: FeedMatch[] = [];
 
   for (const row of data as CustomRow[]) {
-    const clock = matchClock(row.kickoff, row.sport ?? "football", new Date(), {
-      first: Number(row.stoppage_first) || 0,
-      second: Number(row.stoppage_second) || 0,
-    });
-    if (clock.isOver) continue; // Finished matches drop out of the feed.
-
-    const timeline = row.goal_timeline ?? [];
-    const score = clock.isLive ? scoreFromTimeline(timeline, clock) : { home: 0, away: 0 };
-
-    const base = {
-      home: Number(row.odds_home),
-      draw: Number(row.odds_draw),
-      away: Number(row.odds_away),
-    };
-
-    // Odds move with the scoreline once the match is running. This is
-    // presentational only — live betting is locked, so no ticket is ever
-    // struck at a drifted price.
-    const live = clock.isLive || row.is_live;
-    const shown = live ? driftOdds(base, score, clock.minute) : base;
-
-    const boosted = {
-      home: applyBoost(shown.home, row.best_odds),
-      draw: applyBoost(shown.draw, row.best_odds),
-      away: applyBoost(shown.away, row.best_odds),
-    };
-
-    out.push({
-      id: `cm_${row.id}`,
-      source: "custom",
-      league: row.league,
-      country: "Oddaroa",
-      sport: row.sport ?? "football",
-      homeTeam: row.home_team,
-      awayTeam: row.away_team,
-      homeCrest: row.home_crest,
-      awayCrest: row.away_crest,
-      kickoff: row.kickoff,
-      isLive: live,
-      isLocked: live || row.is_locked,
-      postponed: false,
-      minuteLabel: clock.label,
-      scoreHome: live ? score.home : null,
-      scoreAway: live ? score.away : null,
-      bestOdds: row.best_odds,
-      // Operator matches carry the scoreline markets too, fitted to the same
-      // 1X2 price so every market on the card agrees with the others.
-      markets: fullDerivedMarkets(boosted.home, boosted.draw, boosted.away),
-    });
+    const match = customToFeed(row);
+    if (!match || match.finished) continue; // Finished matches drop out of the feed.
+    out.push(match);
   }
 
   return out;
@@ -283,10 +303,18 @@ async function loadOverrides(): Promise<Map<string, OverrideRow>> {
  * Both the details page and bet placement go through here, so a player can
  * never be shown a price the placement endpoint would refuse to honour.
  */
-export async function getMatchDetail(id: string): Promise<FeedMatch | null> {
+export async function getMatchDetail(
+  id: string,
+  opts?: { includeFinished?: boolean },
+): Promise<FeedMatch | null> {
   const feed = await getFeed();
   const match = feed.find((m) => m.id === id);
-  if (!match) return null;
+  if (!match) {
+    // A finished operator match leaves the board, but a booking or a settled
+    // ticket can still open it. It comes back as full time, not as a new game.
+    if (opts?.includeFinished && id.startsWith("cm_")) return loadFinishedCustom(id.slice(3));
+    return null;
+  }
 
   // Operator-created matches are priced by the operator; there is no upstream
   // book for them, so the derived set is the whole truth.

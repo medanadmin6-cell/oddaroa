@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getFeed } from "@/lib/fixtures";
+import { getMatchDetail } from "@/lib/fixtures";
 import { getTracker } from "@/lib/tracker";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
-  const feed = await getFeed();
-  const match = feed.find((m) => m.id === id) ?? null;
+  const match = await getMatchDetail(id, { includeFinished: true });
 
   const tracker = await getTracker(id);
 

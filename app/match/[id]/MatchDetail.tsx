@@ -109,11 +109,13 @@ export function MatchDetail({ id }: { id: string }) {
             <div className="mt-2 flex items-center justify-between bg-[var(--bg-elevated)] px-3 py-2.5 md:px-5">
               <span className="flex items-center gap-2 text-[12px] text-[var(--text)]">
                 <PlayCircle size={16} strokeWidth={1.8} className="text-[var(--accent)]" />
-                {match.isLive
-                  ? "In-play — betting is closed"
-                  : match.postponed
-                    ? "Postponed"
-                    : "Live In-Play Available"}
+                {match.finished
+                  ? "Full time — this match has been played"
+                  : match.isLive
+                    ? "In-play — betting is closed"
+                    : match.postponed
+                      ? "Postponed"
+                      : "Live In-Play Available"}
               </span>
               <Link
                 href={`/match/${id}/tracker`}
@@ -230,12 +232,17 @@ function MatchHead({ match }: { match: FeedMatch }) {
       <TeamSide name={match.homeTeam} crest={match.homeCrest} />
 
       <div className="flex shrink-0 flex-col items-center pt-3">
-        {match.isLive ? (
+        {match.isLive || match.finished ? (
           <>
             <span className="text-[22px] font-black text-[var(--text-bright)] md:text-[28px]">
               {match.scoreHome ?? 0} - {match.scoreAway ?? 0}
             </span>
-            <span className="mt-1 text-[13px] font-bold text-[var(--live)]">{match.minuteLabel}</span>
+            <span
+              className="mt-1 text-[13px] font-bold"
+              style={{ color: match.finished ? "var(--text-muted)" : "var(--live)" }}
+            >
+              {match.finished ? "FT" : match.minuteLabel}
+            </span>
           </>
         ) : (
           <>

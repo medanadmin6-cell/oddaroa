@@ -10,24 +10,60 @@ import { useEffect, useState } from "react";
  * it deliberately does not read from the bets table.
  */
 
-const PREFIXES = ["024", "054", "055", "059", "020", "026", "027"];
-const CURRENCIES = ["GH₵", "₦", "KSh"];
+/** Each line belongs to one market, so a Kenya number never sits on naira. */
+const MARKETS = [
+  {
+    dial: "",
+    symbol: "GH₵",
+    prefixes: ["024", "054", "055", "059", "020", "026", "027"],
+    min: 80,
+    span: 9_000,
+    decimals: false,
+  },
+  {
+    dial: "+234",
+    symbol: "N",
+    prefixes: ["803", "806", "813", "816", "703", "909"],
+    // Naira wins read in the tens and hundreds of thousands, not like cedis.
+    min: 8_500,
+    span: 480_000,
+    decimals: true,
+  },
+  {
+    dial: "+254",
+    symbol: "KSh",
+    prefixes: ["712", "723", "745", "790", "110"],
+    min: 150,
+    span: 20_000,
+    decimals: false,
+  },
+] as const;
 
-function maskedNumber(seed: number): string {
-  const prefix = PREFIXES[seed % PREFIXES.length];
-  return `${prefix}****${String(100 + (seed % 900)).slice(0, 3)}`;
+function maskedNumber(seed: number, market: (typeof MARKETS)[number]): string {
+  const prefix = market.prefixes[seed % market.prefixes.length];
+  const tail = String(100 + (seed % 900)).slice(0, 3);
+  return `${market.dial}${prefix}****${tail}`;
+}
+
+function wonAmount(seed: number, market: (typeof MARKETS)[number]): string {
+  const whole = market.min + ((seed * 37) % market.span);
+  if (!market.decimals) return `${market.symbol}${whole.toLocaleString("en-US")}`;
+  const value = whole + (seed % 100) / 100;
+  return `${market.symbol}${value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function generate(count: number) {
   const now = Date.now();
   return Array.from({ length: count }, (_, i) => {
     const seed = Math.floor(now / 60_000) + i * 7919;
-    const currency = CURRENCIES[seed % CURRENCIES.length];
-    const amount = 50 + ((seed * 37) % 9500);
+    const market = MARKETS[seed % MARKETS.length];
     return {
       id: `${seed}`,
-      number: maskedNumber(seed),
-      amount: `${currency}${amount.toLocaleString()}`,
+      number: maskedNumber(seed, market),
+      amount: wonAmount(seed, market),
     };
   });
 }

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
-  const match = await getMatchDetail(id);
+  const match = await getMatchDetail(id, { includeFinished: true });
   if (!match) {
     return NextResponse.json({ error: "That match is no longer available" }, { status: 404 });
   }

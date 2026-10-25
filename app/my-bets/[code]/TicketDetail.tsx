@@ -349,12 +349,7 @@ export function TicketDetail({ code }: { code: string }) {
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/10">
               <Trophy size={18} strokeWidth={2.2} />
             </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-black leading-tight">You Won!</span>
-              <span className="block truncate text-[12px] font-bold uppercase">
-                {data.owner?.name ?? player.name}
-              </span>
-            </span>
+            <span className="min-w-0 flex-1 text-[15px] font-black leading-tight">You Won!</span>
             <button
               onClick={showOff}
               className="shrink-0 rounded-lg bg-[#1a1400] px-3 py-2 text-[12px] font-black tracking-wide text-white"
@@ -404,7 +399,16 @@ export function TicketDetail({ code }: { code: string }) {
       <div className="fixed inset-x-0 bottom-0 border-t border-[var(--line)] bg-[var(--bg-elevated)] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-2xl gap-2">
           <button
-            onClick={book}
+            onClick={() => {
+              // A finished ticket has nothing left to book. Open the match as
+              // it finished instead of putting it back on the slip.
+              const played = selections[0]?.match_id;
+              if (settled && played) {
+                router.push(`/match/${played}`);
+                return;
+              }
+              void book();
+            }}
             disabled={busy}
             className="flex-1 rounded-full py-2.5 text-[13px] font-bold text-[var(--accent)] ring-1 ring-[var(--accent)] disabled:opacity-40"
           >

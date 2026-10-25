@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronDown, Trash2, Settings, CircleHelp } from "lucide-react";
 import { useSlip, useSession, type SlipMode, type SlipLeg } from "@/lib/store";
 import { formatMoney } from "@/lib/countries";
@@ -465,6 +466,7 @@ export function BetSlip() {
  */
 function EmptySlip() {
   const load = useSlip((s) => s.load);
+  const router = useRouter();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -483,6 +485,10 @@ function EmptySlip() {
       if (!res.ok) {
         setError(json.error ?? "That code was not found");
         if (json.ticket) setTicket(json.ticket as string);
+        return;
+      }
+      if (json.played && json.matchId) {
+        router.push(`/match/${json.matchId}`);
         return;
       }
       // The slip stays open: the point is seeing the selections land on it.

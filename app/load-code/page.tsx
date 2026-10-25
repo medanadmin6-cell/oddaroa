@@ -45,6 +45,10 @@ function LoadCodeForm() {
           if (json.ticket) setTicket(json.ticket as string);
           return;
         }
+        if (json.played && json.matchId) {
+          router.push(`/match/${json.matchId}`);
+          return;
+        }
         load(json.booking.selections as SlipLeg[]);
         router.push("/");
       } catch {
