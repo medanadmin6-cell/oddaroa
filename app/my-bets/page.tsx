@@ -74,6 +74,11 @@ export default function MyBetsPage() {
   }, [hydrated, player, router]);
 
   useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("tab");
+    if (wanted === "history") setTab("history");
+  }, []);
+
+  useEffect(() => {
     if (!player) return;
     // Opening this screen settles this player's own tickets first.
     fetch(`/api/bets/mine?userId=${player.id}`)
@@ -153,7 +158,16 @@ export default function MyBetsPage() {
   useEffect(() => {
     if (tickets) setOpenBets(open.length);
   }, [tickets, open.length, setOpenBets]);
-  const history = useMemo(() => tickets?.filter((t) => t.status !== "pending") ?? [], [tickets]);
+  const history = useMemo(() => {
+    const settled = new Set(["won", "lost", "cashed_out", "void"]);
+    return (tickets ?? [])
+      .filter((t) => settled.has(t.status))
+      .sort((a, b) => {
+        const ta = new Date(a.settled_at ?? a.created_at).getTime();
+        const tb = new Date(b.settled_at ?? b.created_at).getTime();
+        return tb - ta;
+      });
+  }, [tickets]);
 
   const shownOpen = useMemo(() => {
     if (filter === "cashout") return open.filter((t) => details[t.code]?.cashout.available);
@@ -190,7 +204,7 @@ export default function MyBetsPage() {
         {(
           [
             { key: "open", label: `Open Bets (${open.length})` },
-            { key: "history", label: "Bet History" },
+            { key: "history", label: `Bet History (${history.length})` },
           ] as const
         ).map((t) => (
           <button
@@ -280,7 +294,7 @@ export default function MyBetsPage() {
           )
         ) : shownHistory.length === 0 ? (
           <p className="rounded-xl bg-[var(--bg)] p-10 text-center text-[var(--text-muted)]">
-            No tickets here yet.
+            Won, lost and cashed out tickets show up here.
           </p>
         ) : (
           shownHistory.map((t) => <HistoryTicketCard key={t.id} ticket={t} />)
@@ -415,7 +429,7 @@ function HistoryTicketCard({ ticket }: { ticket: Ticket }) {
           <p className="text-[13px] font-black tracking-wider text-[var(--accent)]">{ticket.code}</p>
           <p className="text-[11px] text-[var(--text-faint)]">
             {ticket.selections.length} leg{ticket.selections.length === 1 ? "" : "s"} ·{" "}
-            {new Date(ticket.created_at).toLocaleDateString()}
+            {new Date(ticket.settled_at ?? ticket.created_at).toLocaleDateString()}
           </p>
         </div>
         <span
@@ -425,6 +439,22 @@ function HistoryTicketCard({ ticket }: { ticket: Ticket }) {
           {style.label}
         </span>
       </div>
+
+      <ul className="mt-2 space-y-1">
+        {ticket.selections.map((l) => (
+          <li key={`${l.match_id}-${l.market}-${l.outcome}`} className="text-[13px]">
+            <p className="font-bold text-[var(--text-bright)]">
+              {l.home_team} <span className="font-normal text-[var(--text-muted)]">vs</span> {l.away_team}
+            </p>
+            <p className="text-[12px] text-[var(--text-muted)]">
+              {l.outcome} @ {Number(l.odds).toFixed(2)}
+              {l.final_home !== null && l.final_away !== null
+                ? ` · FT ${l.final_home}-${l.final_away}`
+                : ""}
+            </p>
+          </li>
+        ))}
+      </ul>
 
       <dl className="mt-2 grid grid-cols-3 gap-2 text-[12px]">
         <div>
@@ -437,10 +467,13 @@ function HistoryTicketCard({ ticket }: { ticket: Ticket }) {
         </div>
         <div>
           <dt className="text-[10px] text-[var(--text-faint)]">
-            {ticket.status === "won" || ticket.status === "cashed_out" ? "Paid out" : "To win"}
+            {ticket.status === "lost" ? "Return" : "Paid out"}
           </dt>
           <dd className="font-bold text-[var(--accent)]">
-            {formatMoney(Number(ticket.payout ?? ticket.potential_win), ticket.currency)}
+            {formatMoney(
+              Number(ticket.status === "lost" ? 0 : (ticket.payout ?? ticket.potential_win)),
+              ticket.currency,
+            )}
           </dd>
         </div>
       </dl>

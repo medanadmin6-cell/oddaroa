@@ -1,6 +1,43 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { db } from "@/lib/supabase";
 import { settleBets } from "@/lib/settle";
+
+const COLUMNS =
+  "id, code, stake, total_odds, potential_win, currency, status, payout, settled_at, created_at";
+
+/** Every ticket in these statuses, paged so the history is not capped at 100. */
+async function listBets(supabase: SupabaseClient, userId: string, statuses: string[]) {
+  const pageSize = 400;
+  const rows: { id: string }[] = [];
+  for (let from = 0; from < 4000; from += pageSize) {
+    const { data, error } = await supabase
+      .from("bets")
+      .select(COLUMNS)
+      .eq("user_id", userId)
+      .in("status", statuses)
+      .order("created_at", { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) return { error, rows };
+    rows.push(...(data ?? []));
+    if (!data || data.length < pageSize) break;
+  }
+  return { error: null, rows };
+}
+
+async function listLegs(supabase: SupabaseClient, betIds: string[]) {
+  const legs: { bet_id: string }[] = [];
+  for (let i = 0; i < betIds.length; i += 100) {
+    const { data } = await supabase
+      .from("bet_selections")
+      .select(
+        "bet_id, match_id, home_team, away_team, league, market, outcome, odds, result, kickoff, final_home, final_away",
+      )
+      .in("bet_id", betIds.slice(i, i + 100));
+    legs.push(...(data ?? []));
+  }
+  return legs;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -17,20 +54,24 @@ export async function GET(req: Request) {
 
   await settleBets({ userId }).catch((err) => console.error("[my-bets] settle failed", err));
 
-  const { data: bets, error } = await supabase
-    .from("bets")
-    .select("id, code, stake, total_odds, potential_win, currency, status, payout, settled_at, created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(100);
+  // Open tickets and settled tickets are loaded apart, so a long run of open
+  // bets cannot push won, lost, and cashed-out tickets off the history.
+  const [open, settled] = await Promise.all([
+    listBets(supabase, userId, ["pending"]),
+    listBets(supabase, userId, ["won", "lost", "cashed_out", "void"]),
+  ]);
 
-  if (error) return NextResponse.json({ error: "Could not load your bets" }, { status: 500 });
-  if (!bets?.length) return NextResponse.json({ bets: [] });
+  if (open.error || settled.error) {
+    return NextResponse.json({ error: "Could not load your bets" }, { status: 500 });
+  }
 
-  const { data: legs } = await supabase
-    .from("bet_selections")
-    .select("bet_id, match_id, home_team, away_team, league, market, outcome, odds, result, kickoff, final_home, final_away")
-    .in("bet_id", bets.map((b) => b.id));
+  const bets = [...open.rows, ...settled.rows];
+  if (!bets.length) return NextResponse.json({ bets: [] });
+
+  const legs = await listLegs(
+    supabase,
+    bets.map((b) => b.id),
+  );
 
   const byTicket = new Map<string, unknown[]>();
   for (const leg of legs ?? []) {

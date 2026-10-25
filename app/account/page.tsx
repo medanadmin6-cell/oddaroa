@@ -232,7 +232,7 @@ function AccountView() {
         </Link>
 
         <div className="mx-4 mt-3 grid grid-cols-2 gap-3">
-          <Tile href="/my-bets" icon={<ReceiptText size={22} strokeWidth={1.7} />} label="Bet History" />
+          <Tile href="/my-bets?tab=history" icon={<ReceiptText size={22} strokeWidth={1.7} />} label="Bet History" />
           <Tile
             href="/transactions"
             icon={<CircleDollarSign size={22} strokeWidth={1.7} />}
