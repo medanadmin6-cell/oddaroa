@@ -6,7 +6,15 @@ import { Page } from "@/components/Shell";
 import { useSession } from "@/lib/store";
 import { getCountry, formatMoney } from "@/lib/countries";
 import { RequestSubmitted } from "@/components/RequestSubmitted";
+import { VerifyGate } from "@/components/VerifyGate";
 import { showWithdrawalIos } from "@/lib/withdrawal-ios";
+
+interface DepositProgress {
+  have: number;
+  need: number;
+  amount: number;
+  counted?: boolean;
+}
 
 export default function WithdrawPage() {
   const router = useRouter();
@@ -21,6 +29,8 @@ export default function WithdrawPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<{ title: string; message: string } | null>(null);
+  const [verify, setVerify] = useState<DepositProgress | null>(null);
+  const [checking, setChecking] = useState(false);
 
   const country = player ? getCountry(player.country_code) : getCountry("GH");
 
@@ -41,10 +51,25 @@ export default function WithdrawPage() {
   const apply = useCallback(
     (j: {
       user: { payout_number?: string | null; payout_bank?: string | null; balance?: number };
+      withdrawal?: { failed?: string; hasWon?: boolean; progress?: DepositProgress };
     }) => {
       setPayoutNumber((n) => n || j.user.payout_number || player?.phone || "");
       setPayoutBank((b) => b || j.user.payout_bank || "");
       if (typeof j.user.balance === "number") setBalance(Number(j.user.balance));
+      const progress = j.withdrawal?.progress;
+      // Three deposits of the qualifying amount, shown as soon as a player
+      // opens withdraw. A quiet failure used to leave a winner with no idea
+      // why the money would not leave.
+      if (
+        j.withdrawal?.hasWon &&
+        progress?.counted &&
+        progress.have < progress.need &&
+        j.withdrawal?.failed !== "approval"
+      ) {
+        setVerify(progress);
+      } else {
+        setVerify(null);
+      }
     },
     [player, setBalance],
   );
@@ -75,11 +100,12 @@ export default function WithdrawPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        // The deposit rule still blocks the request. The player is not told
-        // how many deposits are left.
-        if (json.gate !== "deposits") {
-          setError(json.error ?? "Could not submit your withdrawal");
+        const progress = json.progress as DepositProgress | undefined;
+        if (json.gate === "deposits" && progress?.counted && progress.have < progress.need) {
+          setVerify(progress);
+          return;
         }
+        setError(json.error ?? "Could not submit your withdrawal");
         return;
       }
 
@@ -112,8 +138,26 @@ export default function WithdrawPage() {
     }
   };
 
+  const recheck = async () => {
+    setChecking(true);
+    const j = await fetchMe();
+    if (j) apply(j);
+    setChecking(false);
+  };
+
   return (
     <Page>
+      {verify && (
+        <VerifyGate
+          amount={verify.amount}
+          currency={player.currency}
+          have={verify.have}
+          need={verify.need}
+          checking={checking}
+          onBack={() => router.back()}
+          onRecheck={recheck}
+        />
+      )}
       {submitted && <RequestSubmitted title={submitted.title} message={submitted.message} />}
 
       <div className="mx-auto max-w-md space-y-3">

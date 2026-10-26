@@ -133,7 +133,7 @@ console.log("\nWithdrawal gate (Ghana: 3 deposits of GHS 300)");
   check("gate 2 counts deposits rather than summing them", notEnough.failed === "deposits",
     JSON.stringify(notEnough.failed));
 
-  const qualified = { ...player, qualifying_deposits: 4 };
+  const qualified = { ...player, qualifying_deposits: 3 };
   const needsApproval = checkWithdrawalGate(qualified, 100);
   check("gate 3 asks for operator approval", needsApproval.failed === "approval");
 
@@ -175,7 +175,7 @@ console.log("\nWithdrawal gate (Ghana: 3 deposits of GHS 300)");
   check("cannot withdraw more than the balance", !overBalance.ok);
 
   check("progress is reported for the meter",
-    needsApproval.progress.have === 4 && needsApproval.progress.need === 4);
+    needsApproval.progress.have === 3 && needsApproval.progress.need === 3);
 }
 
 console.log("\nMarket grouping and 1X2 outcome labels");

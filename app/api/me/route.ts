@@ -36,13 +36,18 @@ export async function GET(req: Request) {
 
   // Tier points come from turnover, so they are summed off the stakes.
   // The open count is the badge on My Bets.
-  const [{ data: staked }, { count: openBets }] = await Promise.all([
+  const [{ data: staked }, { count: openBets }, { count: wins }] = await Promise.all([
     supabase.from("bets").select("stake").eq("user_id", user.id),
     supabase
       .from("bets")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
       .eq("status", "pending"),
+    supabase
+      .from("bets")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .in("status", ["won", "cashed_out"]),
   ]);
   const tierPoints = (staked ?? []).reduce((sum, b) => sum + Number(b.stake), 0);
 
@@ -69,6 +74,7 @@ export async function GET(req: Request) {
       unlocked: gate.ok,
       failed: gate.failed,
       progress: gate.progress,
+      hasWon: (wins ?? 0) > 0,
     },
     partner: partner ?? null,
     tierPoints: Math.floor(tierPoints),

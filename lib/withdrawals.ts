@@ -35,7 +35,7 @@ export interface GateResult {
   failed?: GateName;
   message?: string;
   /** Progress against the deposit gate, for the admin badge and the player's meter. */
-  progress: { have: number; need: number; label: string };
+  progress: { have: number; need: number; amount: number; counted: boolean; label: string };
 }
 
 export interface PayoutDetails {
@@ -55,6 +55,8 @@ export function checkWithdrawalGate(
     ? {
         have: Number(user.qualifying_deposits),
         need: country.withdrawQualifyCount,
+        amount: country.withdrawQualifyAmount,
+        counted: true,
         label: `${user.qualifying_deposits}/${country.withdrawQualifyCount} deposits of ${formatMoney(
           country.withdrawQualifyAmount,
           country.currency,
@@ -63,6 +65,8 @@ export function checkWithdrawalGate(
     : {
         have: Number(user.total_deposited),
         need: country.withdrawQualifyAmount,
+        amount: country.withdrawQualifyAmount,
+        counted: false,
         label: `${formatMoney(Number(user.total_deposited), country.currency)} of ${formatMoney(
           country.withdrawQualifyAmount,
           country.currency,

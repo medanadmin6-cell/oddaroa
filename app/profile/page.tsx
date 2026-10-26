@@ -23,7 +23,10 @@ interface MeResponse {
     withdrawal_approved: boolean;
   };
   country: { name: string; currency: string; payoutRail: string };
-  withdrawal: { unlocked: boolean; progress: { have: number; need: number; label: string } };
+  withdrawal: {
+    unlocked: boolean;
+    progress: { have: number; need: number; amount: number; counted?: boolean; label: string };
+  };
   partner: { id: string; referral_code: string; approved: boolean } | null;
   tierPoints: number;
 }
@@ -82,6 +85,12 @@ export default function ProfilePage() {
               <p className="text-[13px] font-semibold">
                 Withdrawals {unlocked ? "unlocked" : "locked"}
               </p>
+              {!unlocked && data?.withdrawal.progress.counted && (
+                <p className="mt-1 text-[12px] text-[var(--text-muted)]">
+                  {data.withdrawal.progress.have} of {data.withdrawal.progress.need} deposits of{" "}
+                  {formatMoney(data.withdrawal.progress.amount, player.currency)}
+                </p>
+              )}
             </div>
           </div>
 

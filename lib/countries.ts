@@ -52,7 +52,7 @@ const BASE: Record<string, CountryConfig> = {
     minDeposit: 300,
     maxDeposit: 50000,
     verificationAmount: 300,
-    withdrawQualifyCount: 4,
+    withdrawQualifyCount: 3,
     withdrawQualifyAmount: 300,
     networks: ["MTN Mobile Money", "Telecel Cash", "AirtelTigo Money"],
   },
@@ -75,7 +75,7 @@ const BASE: Record<string, CountryConfig> = {
     minDeposit: 5000, // GH200
     maxDeposit: 1250000, // GH50,000
     verificationAmount: 7500, // GH300
-    withdrawQualifyCount: 4,
+    withdrawQualifyCount: 3,
     withdrawQualifyAmount: 7500, // GH300
     networks: ["Bank transfer"],
   },
@@ -93,7 +93,7 @@ const BASE: Record<string, CountryConfig> = {
     minDeposit: 10,
     maxDeposit: 150000,
     verificationAmount: 2000,
-    withdrawQualifyCount: 4,
+    withdrawQualifyCount: 3,
     withdrawQualifyAmount: 2000,
     networks: ["M-Pesa", "Airtel Money"],
   },
@@ -111,7 +111,7 @@ const BASE: Record<string, CountryConfig> = {
     minDeposit: 10,
     maxDeposit: 50000,
     verificationAmount: 500,
-    withdrawQualifyCount: 4,
+    withdrawQualifyCount: 3,
     withdrawQualifyAmount: 500,
     networks: ["Bank transfer"],
   },
