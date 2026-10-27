@@ -273,7 +273,10 @@ export function TicketDetail({ code }: { code: string }) {
   }
 
   const { bet, selections, cashout: offer } = data;
-  const status = STATUS[bet.status] ?? STATUS.pending;
+  const inPlay = bet.status === "pending" && selections.some((l) => l.isLive);
+  const status = inPlay
+    ? { label: "LIVE", colour: "var(--live)" }
+    : (STATUS[bet.status] ?? STATUS.pending);
   const settled = bet.status !== "pending";
   const won = bet.status === "won" || bet.status === "cashed_out";
 
